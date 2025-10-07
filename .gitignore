@@ -1,2 +1,8 @@
+# Mac specific ignore
 .DS_Store
+
+# ignore the node_modules folder anywhere in the project
 **/node_modules
+
+# ignore build folder in the server portion of the project
+/server/build
