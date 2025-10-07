@@ -104,5 +104,3 @@ After merging:
 ---
 
 🎉 That’s it!  
-You now know how to clone → branch → code → push → open a PR → merge.  
-Welcome to the team ❤️
