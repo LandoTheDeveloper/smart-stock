@@ -83,3 +83,27 @@ npm run dev
 ```
 
 Now open your browser to the URL shown in the terminal
+
+
+## 📁 Project Structure
+
+smart-stock/  
+├── client/ — Frontend React app  
+├── server/ — Backend Node.js API  
+├── docs/ — Documentation  
+├── README.md  
+└── CONTRIBUTING.md
+
+--- 
+
+## 👥 Team
+- Landon Craft
+- Chris Cooper
+- Gafur
+- Ryan
+- Nelson
+
+---
+
+## 🧩 Contributing
+See the [CONTRIBUTING.md](./CONTRIBUTING.md) file for detailed instructions on branching, committing, and pull requests.
