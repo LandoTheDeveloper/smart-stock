@@ -1,0 +1,57 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SmartStock Login</title>
+    <link rel="icon" type="image/png" href="./SmartStockLogo.png" />
+    <link rel="stylesheet" href="./style.css" />
+    <meta name="description" content="SmartStock login-style landing page" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="card">
+        <div class="brand">
+          <img src="./SmartStockLogo.png" alt="SmartStock Logo" width="100" height="100" />
+          <h1>SmartStock</h1>
+        </div>
+
+        <h2 class="title">Welcome back</h2>
+        <p class="subtitle">Sign in to continue</p>
+
+        <form id="login-form" novalidate>
+          <label class="field">
+            <span>Email</span>
+            <input id="email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+          </label>
+
+          <label class="field">
+            <span>Password</span>
+            <input id="password" type="password" name="password" placeholder="••••••••" autocomplete="current-password" required minlength="6" />
+          </label>
+
+          <div class="row">
+            <label class="checkbox">
+              <input type="checkbox" id="remember" />
+              <span>Remember me</span>
+            </label>
+            <a class="link" href="#" aria-disabled="true">Forgot password?</a>
+          </div>
+
+          <button id="submit" type="submit" class="btn">Sign in</button>
+
+          <p id="msg" class="msg" role="status" aria-live="polite"></p>
+        </form>
+
+        <footer class="muted">New here? <a class="link" href="#" aria-disabled="true">Create an account</a></footer>
+      </section>
+
+      <footer class="footer">© <span id="year"></span> SmartStock Inc.</footer>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
+```
+
