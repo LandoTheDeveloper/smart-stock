@@ -4,7 +4,8 @@
   "description": "\"Server portion of the Smart Stock Application\"",
   "main": "src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "devStart": "npx tsc src/index.ts && nodemon build/index.js",
+    "build": "npx tsc"
   },
   "author": "\"Smart Stock Senior Design Team\"",
   "license": "ISC",
@@ -14,6 +15,8 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
+    "@types/node": "^24.7.0",
+    "nodemon": "^3.1.10",
     "typescript": "^5.9.3"
   }
 }
