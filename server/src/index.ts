@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /**
  * Smart Stock API Entry Point
  * -------------------------------------
@@ -43,6 +42,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Smart Stock API listening on port ${PORT}`);
 });
+console.log("Hello World")
 =======
 console.log("Hello World")
->>>>>>> 70823adffe3ef067d8835cf3f147d4fc2ace4263
