@@ -50,18 +50,18 @@ git clone https://github.com/LandoTheDeveloper/smart-stock.git
 cd smart-stock
 ```
 
-3️⃣ Install Dependencies
+###3️⃣ Install Dependencies
 
 We have two main folders — client (frontend) and server (backend).
 Install dependencies in both:
 
-# Frontend setup
+#### Frontend setup
 ```bash
 cd client
 npm install
 ```
 
-# Backend setup
+#### Backend setup
 ```bash
 cd ../server
 npm install
@@ -70,13 +70,13 @@ npm install
 4️⃣ Run the App
 Start both the frontend and backend development servers.
 
-# Backend
+#### Backend
 ```bash
 cd server
 npm run dev
 ```
 
-# Frontend
+#### Frontend
 ```bash
 cd client
 npm run dev
