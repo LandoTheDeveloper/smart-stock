@@ -18,11 +18,13 @@ This guide will walk you through how to use Git and GitHub the right way
 
 Never code directly on main.  
 Create a new branch for each change.
+`checkout` is how you move between branches or create new ones
+`checkout -b` creates a new branch and moves to it in one command
 
 Example commands:
-- `git checkout main`
-- `git pull origin main`
-- `git checkout -b feature/login-page`
+- `git checkout main`  Go to the main branch
+- `git pull origin main`  Get the latest version
+- `git checkout -b feature/login-page`  Create a new branch
 
 Name your branch something clear, like:
 - `feature/add-recipe-form`
