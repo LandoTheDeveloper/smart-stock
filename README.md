@@ -106,4 +106,4 @@ smart-stock/
 ---
 
 ## 🧩 Contributing
-See the [CONTRIBUTING.md](./CONTRIBUTING.md) file for detailed instructions on branching, committing, and pull requests.
+See the [CONTRIBUTING.md](./contributing.md) file for detailed instructions on branching, committing, and pull requests.
