@@ -48,3 +48,38 @@ Open your terminal and run:
 ```bash
 git clone https://github.com/LandoTheDeveloper/smart-stock.git
 cd smart-stock
+```
+
+3️⃣ Install Dependencies
+
+We have two main folders — client (frontend) and server (backend).
+Install dependencies in both:
+
+# Frontend setup
+```bash
+cd client
+npm install
+```
+
+# Backend setup
+```bash
+cd ../server
+npm install
+```
+
+4️⃣ Run the App
+Start both the frontend and backend development servers.
+
+# Backend
+```bash
+cd server
+npm run dev
+```
+
+# Frontend
+```bash
+cd client
+npm run dev
+```
+
+Now open your browser to the URL shown in the terminal
