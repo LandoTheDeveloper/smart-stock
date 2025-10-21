@@ -43,5 +43,3 @@ app.listen(PORT, () => {
   console.log(`✅ Smart Stock API listening on port ${PORT}`);
 });
 console.log("Hello World")
-=======
-console.log("Hello World")
