@@ -5,11 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
-    "devStart": "npx tsc src/index.ts && nodemon build/index.js",
-    "build": "npx tsc"
-=======
+    "start": "node dist/index.js",
     "devStart": "npx tsc src/index.ts && nodemon build/index.js",
     "build": "npx tsc"
   },
@@ -31,7 +27,6 @@
     "ts-node": "^10.9.2",
     "@types/node": "^24.7.0",
     "nodemon": "^3.1.10",
-=======
     "@types/node": "^24.7.0",
     "nodemon": "^3.1.10",
     "typescript": "^5.9.3"
