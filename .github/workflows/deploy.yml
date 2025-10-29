@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ['main']
 
 jobs:
   deploy:
@@ -12,12 +12,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare SSH key
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           set -e
           umask 077
-          cat > id_gha <<'KEY'
-${{ secrets.DEPLOY_SSH_KEY }}
-KEY
+          printf "%s" "$SSH_KEY" > id_gha
           tr -d '\r' < id_gha > id_gha.fix && mv id_gha.fix id_gha
           eval "$(ssh-agent -s)"
           ssh-add id_gha
