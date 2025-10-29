@@ -10,23 +10,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Load SSH key
+      - name: Write SSH key
         env:
           KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
           set -e
           umask 077
           printf "%s\n" "$KEY" > id_gha
-          tr -d '\r' < id_gha > id_fixed && mv id_fixed id_gha
-          eval "$(ssh-agent -s)"
-          ssh-add id_gha
+          tr -d '\r' < id_gha > k && mv k id_gha
+          chmod 600 id_gha
+          ssh-keygen -y -f id_gha | ssh-keygen -lf -
 
       - name: Deploy
         env:
           HOST: ${{ secrets.HOST }}
         run: |
           set -e
-          ssh -o StrictHostKeyChecking=no root@$HOST << 'EOF'
+          ssh -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no root@$HOST << 'EOF'
           set -e
           cd /var/www/smart-stock
           git pull origin main
