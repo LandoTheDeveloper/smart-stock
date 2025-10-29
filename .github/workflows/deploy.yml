@@ -10,6 +10,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Build client in CI
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+
       - name: Write SSH key
         env:
           KEY: ${{ secrets.DEPLOY_KEY }}
@@ -20,20 +33,25 @@ jobs:
           tr -d '\r' < id_gha > k && mv k id_gha
           chmod 600 id_gha
 
-      - name: Deploy
+      - name: Package client dist
+        run: |
+          tar -C client -czf client_dist.tgz dist
+
+      - name: Upload dist and deploy
         env:
           HOST: ${{ secrets.HOST }}
         run: |
           set -e
-          cat > deploy.sh <<'EOS'
-          set -euo pipefail
-          cd /var/www/smart-stock
+          scp -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no client_dist.tgz root@$HOST:/root/client_dist.tgz
+          ssh -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no root@$HOST << 'EOF'
+          set -e
+          APP_DIR=/var/www/smart-stock
+          cd "$APP_DIR"
           git pull --ff-only --quiet
-          cd client && npm install --no-audit --no-fund && npm run build && cd ..
-          cd server && npm install --no-audit --no-fund
+          mkdir -p client
+          rm -rf client/dist
+          tar -xzf /root/client_dist.tgz -C client
+          cd server && npm install --no-audit --no-fund && cd ..
           pkill -f "ts-node src/index.ts" || true
-          nohup npx ts-node src/index.ts > /var/www/smart-stock/server.out 2>&1 &
-          EOS
-
-          scp -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no deploy.sh root@$HOST:/root/deploy.sh
-          ssh -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10 root@$HOST 'bash /root/deploy.sh'
+          nohup npx ts-node src/index.ts > "$APP_DIR/server.out" 2>&1 &
+          EOF
