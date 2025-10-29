@@ -8,16 +8,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Prepare SSH key
         env:
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
           set -e
+          if [ -z "$SSH_KEY" ]; then echo "DEPLOY_KEY secret is empty"; exit 1; fi
           umask 077
-          printf "%s" "$SSH_KEY" > id_gha
+          printf "%s\n" "$SSH_KEY" > id_gha
           tr -d '\r' < id_gha > id_gha.fix && mv id_gha.fix id_gha
           eval "$(ssh-agent -s)"
           ssh-add id_gha
@@ -26,6 +26,8 @@ jobs:
         env:
           HOST: ${{ secrets.HOST }}
         run: |
+          set -e
+          if [ -z "$HOST" ]; then echo "HOST secret is empty"; exit 1; fi
           ssh -o StrictHostKeyChecking=no root@$HOST << 'EOF'
           set -e
           cd /var/www/smart-stock
