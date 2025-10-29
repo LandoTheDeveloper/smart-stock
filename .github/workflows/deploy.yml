@@ -1,7 +1,8 @@
 name: Deploy
+
 on:
   push:
-    branches: ['main']
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -10,16 +11,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Add SSH key
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
-
-      - name: Deploy to Droplet
+      - name: Prepare SSH key
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
+          set -e
+          umask 077
+          cat > id_gha <<'KEY'
+${{ secrets.DEPLOY_SSH_KEY }}
+KEY
+          tr -d '\r' < id_gha > id_gha.fix && mv id_gha.fix id_gha
+          eval "$(ssh-agent -s)"
+          ssh-add id_gha
+
+      - name: Deploy
+        env:
+          HOST: ${{ secrets.HOST }}
+        run: |
+          ssh -o StrictHostKeyChecking=no root@$HOST << 'EOF'
+          set -e
           cd /var/www/smart-stock
           git pull origin main
-          cd server && npm ci && cd ../client && npm ci && npm run build && cd ..
-          pm2 restart smartstock
+          cd client && npm ci && npm run build && cd ..
+          cd server && npm ci
+          pkill -f "ts-node src/index.ts" || true
+          nohup npx ts-node src/index.ts > /var/www/smart-stock/server.out 2>&1 &
           EOF
