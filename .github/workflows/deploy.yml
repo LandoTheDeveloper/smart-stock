@@ -1,5 +1,4 @@
 name: Deploy
-
 on:
   push:
     branches: ['main']
@@ -10,15 +9,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare SSH key
+      - name: Load key
         env:
-          SSH_KEY: ${{ secrets.DEPLOY_KEY }}
+          KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
           set -e
-          if [ -z "$SSH_KEY" ]; then echo "DEPLOY_KEY secret is empty"; exit 1; fi
+          if [ -z "$KEY" ]; then echo "DEPLOY_KEY is empty"; exit 1; fi
           umask 077
-          printf "%s\n" "$SSH_KEY" > id_gha
-          tr -d '\r' < id_gha > id_gha.fix && mv id_gha.fix id_gha
+          cat > id_gha <<'EOF'
+          ${KEY}
+          EOF
+          tr -d '\r' < id_gha > tmp && mv tmp id_gha
+          head -n1 id_gha | grep -q '-----BEGIN OPENSSH PRIVATE KEY-----' || { echo "Not an OpenSSH private key"; exit 1; }
+          tail -n1 id_gha | grep -q '-----END OPENSSH PRIVATE KEY-----' || { echo "Missing END line"; exit 1; }
+          ssh-keygen -y -f id_gha > id_gha.pub || { echo "Invalid private key content"; exit 1; }
+          ssh-keygen -lf id_gha.pub
           eval "$(ssh-agent -s)"
           ssh-add id_gha
 
@@ -27,7 +32,6 @@ jobs:
           HOST: ${{ secrets.HOST }}
         run: |
           set -e
-          if [ -z "$HOST" ]; then echo "HOST secret is empty"; exit 1; fi
           ssh -o StrictHostKeyChecking=no root@$HOST << 'EOF'
           set -e
           cd /var/www/smart-stock
