@@ -1,4 +1,5 @@
 name: Deploy
+
 on:
   push:
     branches: ['main']
@@ -16,16 +17,12 @@ jobs:
           set -e
           if [ -z "$KEY" ]; then echo "DEPLOY_KEY is empty"; exit 1; fi
           umask 077
-          cat > id_gha <<'EOF'
-          ${KEY}
-          EOF
-          tr -d '\r' < id_gha > tmp && mv tmp id_gha
-          head -n1 id_gha | grep -q '-----BEGIN OPENSSH PRIVATE KEY-----' || { echo "Not an OpenSSH private key"; exit 1; }
-          tail -n1 id_gha | grep -q '-----END OPENSSH PRIVATE KEY-----' || { echo "Missing END line"; exit 1; }
-          ssh-keygen -y -f id_gha > id_gha.pub || { echo "Invalid private key content"; exit 1; }
-          ssh-keygen -lf id_gha.pub
+          printf "%s\n" "$KEY" > id_gha
+          tr -d '\r' < id_gha > id_fixed && mv id_fixed id_gha
           eval "$(ssh-agent -s)"
           ssh-add id_gha
+          ssh-keygen -y -f id_gha > id_gha.pub
+          ssh-keygen -lf id_gha.pub
 
       - name: Deploy
         env:
