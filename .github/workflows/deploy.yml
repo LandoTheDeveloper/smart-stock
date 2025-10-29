@@ -19,19 +19,21 @@ jobs:
           printf "%s\n" "$KEY" > id_gha
           tr -d '\r' < id_gha > k && mv k id_gha
           chmod 600 id_gha
-          ssh-keygen -y -f id_gha | ssh-keygen -lf -
 
       - name: Deploy
         env:
           HOST: ${{ secrets.HOST }}
         run: |
           set -e
-          ssh -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no root@$HOST << 'EOF'
-          set -e
+          cat > deploy.sh <<'EOS'
+          set -euo pipefail
           cd /var/www/smart-stock
-          git pull origin main
-          cd client && npm ci && npm run build && cd ..
-          cd server && npm ci
+          git pull --ff-only --quiet
+          cd client && npm install --no-audit --no-fund && npm run build && cd ..
+          cd server && npm install --no-audit --no-fund
           pkill -f "ts-node src/index.ts" || true
           nohup npx ts-node src/index.ts > /var/www/smart-stock/server.out 2>&1 &
-          EOF
+          EOS
+
+          scp -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no deploy.sh root@$HOST:/root/deploy.sh
+          ssh -i id_gha -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10 root@$HOST 'bash /root/deploy.sh'
