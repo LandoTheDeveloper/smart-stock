@@ -10,32 +10,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug print DEPLOY_KEY
+      - name: Load SSH key
         env:
           KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
           set -e
-          echo "----- RAW START -----"
-          printf '%s\n' "$KEY"
-          echo "----- RAW END -----"
-          echo "----- BASE64 START -----"
-          printf '%s' "$KEY" | base64
-          echo
-          echo "----- BASE64 END -----"
-
-      - name: Load key
-        env:
-          KEY: ${{ secrets.DEPLOY_KEY }}
-        run: |
-          set -e
-          [ -z "$KEY" ] && { echo "DEPLOY_KEY is empty"; exit 1; }
           umask 077
-          printf '%s\n' "$KEY" > id_gha
+          printf "%s\n" "$KEY" > id_gha
           tr -d '\r' < id_gha > id_fixed && mv id_fixed id_gha
           eval "$(ssh-agent -s)"
           ssh-add id_gha
-          ssh-keygen -y -f id_gha > id_gha.pub
-          ssh-keygen -lf id_gha.pub
 
       - name: Deploy
         env:
