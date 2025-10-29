@@ -3,31 +3,38 @@
   "version": "1.0.0",
   "description": "Server portion of the Smart Stock Application",
   "main": "dist/index.js",
+  "type": "commonjs",
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "start": "node dist/index.js",
-    "devStart": "npx tsc src/index.ts && nodemon build/index.js",
-    "build": "npx tsc"
+    "build": "tsc"
   },
+  "keywords": [],
   "author": "Smart Stock Senior Design Team",
   "license": "ISC",
   "dependencies": {
     "@types/mongoose": "^5.11.96",
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.20.0",
     "mongoose": "^8.19.2",
     "morgan": "^1.10.1"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
+    "@types/express": "^5.0.5",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^24.7.0",
+    "@types/node": "^24.9.2",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
-  "keywords": []
+  "directories": {
+    "test": "tests"
+  }
 }

@@ -1,34 +1,24 @@
-/**
- * Smart Stock API Entry Point
- * -------------------------------------
- * This file starts the Express server, configures middleware,
- * and defines the base health check route.
- */
+// server.ts - Express + MongoDB Login API with TypeScript
 
-import express, { Application, Request, Response, NextFunction } from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import morgan from 'morgan';
+import express, { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
-// Load environment variables from .env file
 dotenv.config();
 
-const app: Application = express();
+const app = express();
 
-// -----------------------------
+// Middleware
+app.use(express.json());
+app.use(cors());
+
 // MongoDB Connection
-// -----------------------------
-const MONGODB_URI = process.env.MONGODB_URI;
-mongoose.connect(MONGODB_URI || 'mongodb://localhost:27017/smart-stock')
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch((err) => console.error('❌ MongoDB connection error:', err));
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/smart-stock');
 
-// -----------------------------
-// User Model
-// -----------------------------
+// User Interface
 interface IUser {
   email: string;
   password: string;
@@ -36,6 +26,7 @@ interface IUser {
   createdAt: Date;
 }
 
+// User Schema
 const userSchema = new mongoose.Schema<IUser>({
   email: {
     type: String,
@@ -62,19 +53,7 @@ const User = mongoose.model<IUser>('User', userSchema);
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
-// -----------------------------
-// Middleware
-// -----------------------------
-app.use(express.json());              // Parse JSON request bodies
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
-  credentials: true,
-}));                                  // Enable CORS for frontend requests
-app.use(morgan('dev'));               // Log HTTP requests in the console
-
-// -----------------------------
-// Types
-// -----------------------------
+// Request body types
 interface RegisterBody {
   email: string;
   password: string;
@@ -86,59 +65,16 @@ interface LoginBody {
   password: string;
 }
 
+// JWT Payload type
 interface JWTPayload {
   userId: string;
   email: string;
 }
 
+// Extend Express Request to include user
 interface AuthRequest extends Request {
   user?: any;
 }
-
-// -----------------------------
-// Auth Middleware
-// -----------------------------
-const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'No token provided' 
-      });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    const user = await User.findById(decoded.userId).select('-password');
-
-    if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid token' 
-      });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    res.status(401).json({ 
-      success: false, 
-      message: 'Invalid token' 
-    });
-  }
-};
-
-// -----------------------------
-// Routes
-// -----------------------------
-app.get('/', (req: Request, res: Response) => {
-  res.send('🚀 Smart Stock API is running!');
-});
-
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Register Endpoint
 app.post('/api/auth/register', async (req: Request<{}, {}, RegisterBody>, res: Response) => {
@@ -258,6 +194,38 @@ app.post('/api/auth/login', async (req: Request<{}, {}, LoginBody>, res: Respons
   }
 });
 
+// Middleware to verify JWT token
+const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'No token provided' 
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const user = await User.findById(decoded.userId).select('-password');
+
+    if (!user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid token' 
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({ 
+      success: false, 
+      message: 'Invalid token' 
+    });
+  }
+};
+
 // Protected Route Example
 app.get('/api/auth/me', authMiddleware, (req: AuthRequest, res: Response) => {
   res.json({
@@ -266,11 +234,8 @@ app.get('/api/auth/me', authMiddleware, (req: AuthRequest, res: Response) => {
   });
 });
 
-// -----------------------------
-// Server Configuration
-// -----------------------------
+// Start server
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-  console.log(`✅ Smart Stock API listening on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
