@@ -67,7 +67,7 @@ export default function DashboardLayout() {
         <header className='dash-header'>
           <h1 className='dash-title'>Welcome back</h1>
           <div className='header-actions'>
-            <button className='btn-primary'>Add Item</button>
+            <button className='btn-primary'>useful buttons here?</button>
           </div>
         </header>
         <Outlet />
