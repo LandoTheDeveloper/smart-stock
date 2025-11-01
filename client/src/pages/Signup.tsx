@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import './Auth.css';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -26,49 +27,58 @@ export default function Signup() {
   };
 
   return (
-    <main className='container' style={{ maxWidth: 420, margin: '40px auto' }}>
-      <h1>Create account</h1>
-      <form onSubmit={onSubmit}>
-        <label>
-          Name
-          <br />
+    <div className='auth-wrap'>
+      <div className='auth-card'>
+        <div className='auth-brand'>
+          <div className='logo'>SS</div>
+          <div className='brand-text'>SmartStock</div>
+        </div>
+        <div className='auth-title'>Create your account</div>
+
+        <form className='auth-form' onSubmit={onSubmit}>
+          <label htmlFor='name'>Name</label>
           <input
+            id='name'
+            className='auth-input'
             value={name}
             onChange={(e) => setName(e.target.value)}
+            autoComplete='name'
             required
           />
-        </label>
-        <br />
-        <label>
-          Email
-          <br />
+
+          <label htmlFor='email'>Email</label>
           <input
+            id='email'
+            className='auth-input'
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type='email'
+            autoComplete='email'
             required
           />
-        </label>
-        <br />
-        <label>
-          Password
-          <br />
+
+          <label htmlFor='password'>Password</label>
           <input
+            id='password'
+            className='auth-input'
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type='password'
+            autoComplete='new-password'
             required
           />
-        </label>
-        <br />
-        {err && <p style={{ color: 'red' }}>{err}</p>}
-        <button disabled={loading} type='submit'>
-          {loading ? '…' : 'Create account'}
-        </button>
-      </form>
-      <p style={{ marginTop: 12 }}>
-        Already have an account? <Link to='/login'>Log in</Link>
-      </p>
-    </main>
+
+          {err && <div style={{ color: 'red', fontSize: '0.9rem' }}>{err}</div>}
+
+          <button className='auth-btn' disabled={loading} type='submit'>
+            {loading ? '…' : 'Create account'}
+          </button>
+        </form>
+
+        <div className='auth-link'>
+          Already have an account? <Link to='/login'>Log in</Link>
+        </div>
+      </div>
+    </div>
   );
 }
