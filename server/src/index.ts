@@ -12,7 +12,7 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
+import { GoogleGenerativeAI } from '@google/generative-ai';
 // Load environment variables from .env file
 dotenv.config();
 
@@ -264,6 +264,32 @@ app.get('/api/auth/me', authMiddleware, (req: AuthRequest, res: Response) => {
     success: true,
     user: req.user,
   });
+});
+
+// Initialize correctly
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+// Update the route
+app.post('/api/generate', async (req: Request<{}, {}, { prompt: string }>, res: Response) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ success: false, message: "Prompt is required." });
+    }
+    
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    res.json({ success: true, text });
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error generating content",
+    });
+  }
 });
 
 // -----------------------------

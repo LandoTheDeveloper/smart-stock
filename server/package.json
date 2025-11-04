@@ -13,6 +13,8 @@
   "author": "Smart Stock Senior Design Team",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^1.28.0",
+    "@google/generative-ai": "^0.24.1",
     "@types/mongoose": "^5.11.96",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
