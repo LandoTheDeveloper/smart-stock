@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './dashboard-theme.css';
+import logo from '../assets/SmartStockLogo.png';
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
@@ -15,8 +16,14 @@ export default function DashboardLayout() {
     <div className='dash-root'>
       <aside className='dash-sidebar'>
         <div className='brand'>
-          <div className='brand-logo'>SS</div>
-          <div className='brand-name'>SmartStock</div>
+          <div className='logo'>
+            <img
+              src={logo}
+              alt='SmartStock logo'
+              style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }}
+            />
+          </div>
+          <div className='brand-name'>Smart Stock</div>
         </div>
 
         <nav className='nav'>
