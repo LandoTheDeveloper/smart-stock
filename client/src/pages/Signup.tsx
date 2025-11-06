@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import './Auth.css';
+import logo from '../assets/SmartStockLogo.png';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -30,8 +31,14 @@ export default function Signup() {
     <div className='auth-wrap'>
       <div className='auth-card'>
         <div className='auth-brand'>
-          <div className='logo'>SS</div>
-          <div className='brand-text'>SmartStock</div>
+          <div className='logo'>
+            <img
+              src={logo}
+              alt='SmartStock logo'
+              style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }}
+            />
+          </div>
+        <div className='brand-text'></div>
         </div>
         <div className='auth-title'>Create your account</div>
 
