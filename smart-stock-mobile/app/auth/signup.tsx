@@ -1,40 +1,65 @@
 
-import React from "react";
+import React, { useState } from "react";
 import {
-  SafeAreaView,
+  View,
   Text,
-  StyleSheet,
   TextInput,
-  Button,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Image,
 } from "react-native";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
+import { useAuth } from "../../context/authcontext";
+
+import Logo from "../../assets/SmartStockLogo.png";
 
 export default function SignupScreen() {
+  const router = useRouter();
+  const { signup } = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+
+  const handleSignup = async () => {
+    await signup({ email, password: pass });
+    router.replace("/main/dashboard");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Sign Up</Text>
+      <Image source={Logo} style={styles.logo} resizeMode="contain" />
 
-      <TextInput
-        placeholder="Email"
-        style={styles.input}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <TextInput
-        placeholder="Password"
-        style={styles.input}
-        secureTextEntry
-      />
+      <View style={styles.card}>
+        <Text style={styles.title}>Create Account</Text>
 
-      <Button title="Create account (dummy)" onPress={() => {}} />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
 
-      <Link href="/auth/login" style={styles.link}>
-        Already have an account? Login
-      </Link>
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          secureTextEntry
+          value={pass}
+          onChangeText={setPass}
+        />
 
-      <Link href="/" style={styles.link}>
-        Back to Home
-      </Link>
+        <TouchableOpacity style={styles.button} onPress={handleSignup}>
+          <Text style={styles.buttonText}>Sign Up</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.linkText}>
+          Already have an account?{" "}
+          <Link href="/auth/login" style={styles.link}>
+            Log in
+          </Link>
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -42,25 +67,68 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    backgroundColor: "#f6fbf7",
     justifyContent: "center",
-    gap: 12,
+    padding: 24,
   },
+
+  logo: {
+    width: 180,
+    height: 180,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 28,
+    borderColor: "#e3ece5",
+    borderWidth: 1,
+    shadowColor: "rgba(0,0,0,0.1)",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+  },
+
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "700",
-    marginBottom: 12,
     textAlign: "center",
+    marginBottom: 20,
+    color: "#2e7d32",
   },
+
   input: {
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderColor: "#e3ece5",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 14,
   },
-  link: {
-    marginTop: 8,
+
+  button: {
+    backgroundColor: "#2e7d32",
+    padding: 14,
+    borderRadius: 10,
+    marginTop: 6,
+  },
+
+  buttonText: {
+    color: "#fff",
     textAlign: "center",
-    textDecorationLine: "underline",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+
+  linkText: {
+    marginTop: 14,
+    textAlign: "center",
+    color: "#5f6b63",
+  },
+
+  link: {
+    color: "#2e7d32",
+    fontWeight: "600",
   },
 });
