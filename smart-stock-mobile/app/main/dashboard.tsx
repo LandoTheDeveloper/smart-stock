@@ -1,4 +1,4 @@
-// app/main/dashboard.tsx
+
 import React, { useState, useMemo } from "react";
 import {
   View,
@@ -8,9 +8,15 @@ import {
   SafeAreaView,
   ScrollView,
   Image,
+  TouchableOpacity,
 } from "react-native";
+import { useRouter } from "expo-router";
+import { useAuth } from "../../context/authcontext";
 
 import Logo from "../../assets/SmartStockLogo.png";
+import RecipeIcon from "../../assets/RecipeButton.png";
+import ScanIcon from "../../assets/ScanButton.png";
+import PantryIcon from "../../assets/PantryButton.png";
 
 const SAMPLE = [
   { item: "Chicken Breast", qty: 2, expires: "Nov 5", status: "warn" },
@@ -18,7 +24,12 @@ const SAMPLE = [
   { item: "Greek Yogurt", qty: 5, expires: "Nov 3", status: "danger" },
 ];
 
+const BOTTOM_BAR_HEIGHT = 95;
+
 export default function Dashboard() {
+  const router = useRouter();
+  const { logout } = useAuth();
+
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -38,86 +49,161 @@ export default function Dashboard() {
       ? "#ffb300"
       : "#d32f2f";
 
+  const handleSignOut = async () => {
+    await logout();
+    router.replace("/auth/login");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Logo */}
-        <Image
-          source={Logo}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-
-        {/* KPI Cards */}
-        <View style={styles.grid}>
-          <View style={[styles.card, styles.gridItem]}>
-            <Text style={styles.cardTitle}>Low Stock</Text>
-            <Text style={styles.kpi}>{lowStock} items</Text>
-            <Text style={styles.sub}>Needs restock soon</Text>
+      <View style={styles.contentWrapper}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Sign Out top-left */}
+          <View style={styles.signOutRow}>
+            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={[styles.card, styles.gridItem]}>
-            <Text style={styles.cardTitle}>Expiring Soon</Text>
-            <Text style={styles.kpi}>{expiringSoon}</Text>
-            <Text style={styles.sub}>Within 5 days</Text>
+          {/* Logo */}
+          <Image source={Logo} style={styles.logo} resizeMode="contain" />
+
+          {/* KPI Cards */}
+          <View style={styles.grid}>
+            <View style={[styles.card, styles.gridItem]}>
+              <Text style={styles.cardTitle}>Low Stock</Text>
+              <Text style={styles.kpi}>{lowStock} items</Text>
+              <Text style={styles.sub}>Needs restock soon</Text>
+            </View>
+
+            <View style={[styles.card, styles.gridItem]}>
+              <Text style={styles.cardTitle}>Expiring Soon</Text>
+              <Text style={styles.kpi}>{expiringSoon}</Text>
+              <Text style={styles.sub}>Within 5 days</Text>
+            </View>
+
+            <View style={[styles.card, styles.gridItem]}>
+              <Text style={styles.cardTitle}>Pantry Size</Text>
+              <Text style={styles.kpi}>{pantrySize}</Text>
+              <Text style={styles.sub}>Total tracked items</Text>
+            </View>
           </View>
 
-          <View style={[styles.card, styles.gridItem]}>
-            <Text style={styles.cardTitle}>Pantry Size</Text>
-            <Text style={styles.kpi}>{pantrySize}</Text>
-            <Text style={styles.sub}>Total tracked items</Text>
+          {/* Activity Table */}
+          <View style={styles.card}>
+            <Text style={styles.tableTitle}>Recent Activity</Text>
+
+            <TextInput
+              style={styles.search}
+              placeholder="Search..."
+              value={q}
+              onChangeText={setQ}
+            />
+
+            <View>
+              {filtered.map((row, idx) => (
+                <View style={styles.row} key={idx}>
+                  <Text style={[styles.cell, styles.cellItem]}>{row.item}</Text>
+                  <Text style={[styles.cell, styles.cellQty]}>{row.qty}</Text>
+                  <Text style={[styles.cell, styles.cellExpires]}>
+                    {row.expires}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.pill,
+                      { backgroundColor: pillColor(row.status) },
+                    ]}
+                  >
+                    {row.status === "ok"
+                      ? "OK"
+                      : row.status === "warn"
+                      ? "Soon"
+                      : "Urgent"}
+                  </Text>
+                </View>
+              ))}
+
+              {filtered.length === 0 && (
+                <Text style={styles.emptyText}>No results.</Text>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Full-width bottom bar with icon buttons */}
+        <View style={styles.bottomBarBase}>
+          <View style={styles.bottomBarContent}>
+            <TouchableOpacity
+              style={styles.bottomButton}
+              onPress={() => router.push("/main/recipes")}
+            >
+              <Image
+                source={RecipeIcon}
+                style={styles.bottomIcon}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.bottomButton}
+              onPress={() => router.push("/main/scan")}
+            >
+              <Image
+                source={ScanIcon}
+                style={styles.bottomIcon}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.bottomButton}
+              onPress={() => router.push("/main/pantry")}
+            >
+              <Image
+                source={PantryIcon}
+                style={styles.bottomIcon}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
           </View>
         </View>
-
-        {/* Activity Table */}
-        <View style={styles.card}>
-          <Text style={styles.tableTitle}>Recent Activity</Text>
-
-          <TextInput
-            style={styles.search}
-            placeholder="Search..."
-            value={q}
-            onChangeText={setQ}
-          />
-
-          <View>
-            {filtered.map((row, idx) => (
-              <View style={styles.row} key={idx}>
-                <Text style={[styles.cell, styles.cellItem]}>{row.item}</Text>
-                <Text style={[styles.cell, styles.cellQty]}>{row.qty}</Text>
-                <Text style={[styles.cell, styles.cellExpires]}>
-                  {row.expires}
-                </Text>
-                <Text
-                  style={[
-                    styles.pill,
-                    { backgroundColor: pillColor(row.status) },
-                  ]}
-                >
-                  {row.status === "ok"
-                    ? "OK"
-                    : row.status === "warn"
-                    ? "Soon"
-                    : "Urgent"}
-                </Text>
-              </View>
-            ))}
-
-            {filtered.length === 0 && (
-              <Text style={styles.emptyText}>No results.</Text>
-            )}
-          </View>
-        </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6fbf7" },
+
+  contentWrapper: {
+    flex: 1,
+  },
+
   scroll: {
-    padding: 20,
-    paddingBottom: 32,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingBottom: BOTTOM_BAR_HEIGHT + 20, // room for nav bar
+  },
+
+  signOutRow: {
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+
+  signOutButton: {
+    backgroundColor: "#2e7d32",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+
+  signOutText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
   },
 
   logo: {
@@ -209,5 +295,37 @@ const styles = StyleSheet.create({
     color: "#6b726d",
     marginTop: 10,
   },
+
+  bottomBarBase: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: BOTTOM_BAR_HEIGHT,
+    backgroundColor: "#ffffff",
+    borderTopWidth: 1,
+    borderTopColor: "#e3ece5",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+
+  bottomBarContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 10,
+  },
+
+  bottomButton: {
+    flex: 1,
+    alignItems: "center",
+  },
+
+  bottomIcon: {
+    width: 65,
+    height: 65,
+  },
 });
+
+
 
