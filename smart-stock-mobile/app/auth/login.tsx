@@ -13,7 +13,7 @@ import {
 import { Link, useRouter } from "expo-router";
 import { useAuth } from "../../context/authcontext";
 
-import Logo from "../../assets/SmartStockLogo.png";
+import Logo from "../../assets/SmartStockLogoTransparent.png";
 
 export default function LoginScreen() {
   const router = useRouter();

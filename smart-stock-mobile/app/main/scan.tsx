@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   arrowText: {
-    fontSize: 45,
+    fontSize: 40,
     fontWeight: "800",
     color: "#2e7d32",
   },
@@ -196,8 +196,8 @@ const styles = StyleSheet.create({
     height: 140,
   },
   lightIcon: {
-    width: 45,
-    height: 45,
+    width: 40,
+    height: 40,
   },
 
   /*Overlay & scan box*/

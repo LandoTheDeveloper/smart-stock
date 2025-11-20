@@ -13,7 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/authcontext";
 
-import Logo from "../../assets/SmartStockLogo.png";
+import Logo from "../../assets/SmartStockLogoTransparent.png";
 import RecipeIcon from "../../assets/RecipeButton.png";
 import ScanIcon from "../../assets/ScanButton.png";
 import PantryIcon from "../../assets/PantryButton.png";
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   },
   headerLogo: {
     width: 140,
-    height: 80,
+    height: 140,
   },
 
   contentWrapper: {
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   scroll: {
     paddingTop: 16,
     paddingHorizontal: 20,
-    paddingBottom: BOTTOM_BAR_HEIGHT + 20, // room for nav bar
+    paddingBottom: BOTTOM_BAR_HEIGHT + 20,
   },
 
   grid: {
