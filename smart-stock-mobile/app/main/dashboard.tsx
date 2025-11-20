@@ -1,4 +1,4 @@
-
+// app/main/dashboard.tsx
 import React, { useState, useMemo } from "react";
 import {
   View,
@@ -56,21 +56,20 @@ export default function Dashboard() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Fixed header bar */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity style={styles.headerSignOut} onPress={handleSignOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
+
+        <Image source={Logo} style={styles.headerLogo} resizeMode="contain" />
+      </View>
+
       <View style={styles.contentWrapper}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* Sign Out top-left */}
-          <View style={styles.signOutRow}>
-            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Logo */}
-          <Image source={Logo} style={styles.logo} resizeMode="contain" />
-
           {/* KPI Cards */}
           <View style={styles.grid}>
             <View style={[styles.card, styles.gridItem]}>
@@ -178,6 +177,33 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6fbf7" },
 
+  // Header bar at the top
+  headerBar: {
+    height: 110,
+    backgroundColor: "#f6fbf7",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e3ece5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerSignOut: {
+    position: "absolute",
+    left: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: "#2e7d32",
+    borderRadius: 999,
+  },
+  signOutText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  headerLogo: {
+    width: 140,
+    height: 80,
+  },
+
   contentWrapper: {
     flex: 1,
   },
@@ -186,31 +212,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: BOTTOM_BAR_HEIGHT + 20, // room for nav bar
-  },
-
-  signOutRow: {
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-
-  signOutButton: {
-    backgroundColor: "#2e7d32",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-
-  signOutText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-
-  logo: {
-    width: 160,
-    height: 160,
-    alignSelf: "center",
-    marginBottom: 12,
   },
 
   grid: {
@@ -322,10 +323,11 @@ const styles = StyleSheet.create({
   },
 
   bottomIcon: {
-    width: 65,
-    height: 65,
+    width: 50,   
+    height: 50,
   },
 });
+
 
 
 

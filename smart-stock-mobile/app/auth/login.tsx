@@ -42,7 +42,7 @@ export default function LoginScreen() {
       <Image source={Logo} style={styles.logo} resizeMode="contain" />
 
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.title}>Welcome </Text>
 
         <TextInput
           style={styles.input}
