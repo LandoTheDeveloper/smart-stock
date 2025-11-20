@@ -13,7 +13,7 @@ import {
 import { Link, useRouter } from "expo-router";
 import { useAuth } from "../../context/authcontext";
 
-import Logo from "../../assets/SmartStockLogo.png";
+import Logo from "../../assets/SmartStockLogoTransparent.png";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function LoginScreen() {
       <Image source={Logo} style={styles.logo} resizeMode="contain" />
 
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.title}>Welcome </Text>
 
         <TextInput
           style={styles.input}

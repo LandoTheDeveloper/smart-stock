@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import {
   View,
@@ -13,10 +12,15 @@ import {
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/authcontext";
 
-import Logo from "../../assets/SmartStockLogo.png";
+import Logo from "../../assets/SmartStockLogoTransparent.png";
 import RecipeIcon from "../../assets/RecipeButton.png";
 import ScanIcon from "../../assets/ScanButton.png";
 import PantryIcon from "../../assets/PantryButton.png";
+
+import AppleAvatar from "../../assets/AppleAvatar.png";
+import CornAvatar from "../../assets/CornAvatar.png";
+import TurkeyAvatar from "../../assets/TurkeyAvatar.png";
+import BroccoliAvatar from "../../assets/BroccoliAvatar.png";
 
 const SAMPLE = [
   { item: "Chicken Breast", qty: 2, expires: "Nov 5", status: "warn" },
@@ -26,9 +30,23 @@ const SAMPLE = [
 
 const BOTTOM_BAR_HEIGHT = 95;
 
+function getAvatarSource(name: string) {
+  switch (name) {
+    case "AppleAvatar.png":
+      return AppleAvatar;
+    case "CornAvatar.png":
+      return CornAvatar;
+    case "TurkeyAvatar.png":
+      return TurkeyAvatar;
+    case "BroccoliAvatar.png":
+    default:
+      return BroccoliAvatar;
+  }
+}
+
 export default function Dashboard() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { avatar, displayName } = useAuth();
 
   const [q, setQ] = useState("");
 
@@ -49,31 +67,36 @@ export default function Dashboard() {
       ? "#ffb300"
       : "#d32f2f";
 
-  const handleSignOut = async () => {
-    await logout();
-    router.replace("/auth/login");
-  };
-
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header with avatar and logo */}
+      <View style={styles.headerBar}>
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={() => router.push("/main/profilepage")}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={getAvatarSource(avatar)}
+              style={styles.avatarImg}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+          <Text style={styles.displayName}>{displayName}</Text>
+        </View>
+
+        <Image source={Logo} style={styles.headerLogo} resizeMode="contain" />
+      </View>
+
       <View style={styles.contentWrapper}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* Sign Out top-left */}
-          <View style={styles.signOutRow}>
-            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Logo */}
-          <Image source={Logo} style={styles.logo} resizeMode="contain" />
-
           {/* KPI Cards */}
           <View style={styles.grid}>
-            <View style={[styles.card, styles.gridItem]}>
+            <View className="card" style={[styles.card, styles.gridItem]}>
               <Text style={styles.cardTitle}>Low Stock</Text>
               <Text style={styles.kpi}>{lowStock} items</Text>
               <Text style={styles.sub}>Needs restock soon</Text>
@@ -178,6 +201,43 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6fbf7" },
 
+  headerBar: {
+    height: 130,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e3ece5",
+    backgroundColor: "#f6fbf7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarContainer: {
+    position: "absolute",
+    left: 16,
+    top: 18,
+    alignItems: "center",
+  },
+  avatarWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#2e7d32",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+  },
+  displayName: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2e7d32",
+  },
+  headerLogo: {
+    width: 150,
+    height: 150,
+  },
+
   contentWrapper: {
     flex: 1,
   },
@@ -186,31 +246,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: BOTTOM_BAR_HEIGHT + 20, // room for nav bar
-  },
-
-  signOutRow: {
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-
-  signOutButton: {
-    backgroundColor: "#2e7d32",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-
-  signOutText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-
-  logo: {
-    width: 160,
-    height: 160,
-    alignSelf: "center",
-    marginBottom: 12,
   },
 
   grid: {
@@ -322,10 +357,12 @@ const styles = StyleSheet.create({
   },
 
   bottomIcon: {
-    width: 65,
-    height: 65,
+    width: 42,
+    height: 42,
   },
 });
+
+
 
 
 

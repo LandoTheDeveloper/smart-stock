@@ -1,4 +1,4 @@
-
+// app/main/scan.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,17 +6,25 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
+  SafeAreaView,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 
-const BOTTOM_BAR_HEIGHT = 90;
+import Logo from "../../assets/SmartStockLogoTransparent.png";
+import LightIcon from "../../assets/LightIcon.png";
+import LightOnIcon from "../../assets/LightOnIcon.png";
+
+const BOTTOM_BAR_HEIGHT = 95;
 
 export default function ScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
+
   const [scanned, setScanned] = useState(false);
   const [scannedText, setScannedText] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
 
   if (!permission) {
     return (
@@ -40,9 +48,9 @@ export default function ScanScreen() {
 
         <TouchableOpacity
           style={[styles.backButton, { marginTop: 12, backgroundColor: "#555" }]}
-          onPress={() => router.back()}
+          onPress={() => router.replace("/main/dashboard")}
         >
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>Back to Dashboard</Text>
         </TouchableOpacity>
       </View>
     );
@@ -53,25 +61,70 @@ export default function ScanScreen() {
     setScannedText(`Type: ${type}\nData: ${data}`);
   };
 
-  return (
-    <View style={styles.container}>
+  const handleBackToDashboard = () => {
+    router.replace("/main/dashboard");
+  };
 
-      <View style={styles.cameraWrapper}>
+  const toggleTorch = () => {
+    setTorchOn((prev) => !prev);
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.fullScreen}>
+        /* Camera fills the background */
         <CameraView
           style={StyleSheet.absoluteFillObject}
           facing="back"
+          enableTorch={torchOn}
           barcodeScannerSettings={{
-            barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code39", "code128"],
+            barcodeTypes: [
+              "qr",
+              "ean13",
+              "ean8",
+              "upc_a",
+              "upc_e",
+              "code39",
+              "code128",
+            ],
           }}
-          onBarcodeScanned={scanned ? undefined : (event) => handleBarCodeScanned(event)}
+          onBarcodeScanned={scanned ? undefined : (e) => handleBarCodeScanned(e)}
         />
 
-        {/* Overlay box */}
+        /* Transparent Header Overlay */
+        <View style={styles.headerBar}>
+          {/* Arrow back to dashboard */}
+          <TouchableOpacity
+            style={styles.headerLeft}
+            onPress={handleBackToDashboard}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.arrowText}>←</Text>
+          </TouchableOpacity>
+
+          /* Center logo */
+          <Image source={Logo} style={styles.headerLogo} resizeMode="contain" />
+
+          /* Torch toggle on the right */
+          <TouchableOpacity
+            style={styles.headerRight}
+            onPress={toggleTorch}
+            activeOpacity={0.7}
+          >
+            <Image
+              source={torchOn ? LightOnIcon : LightIcon}
+              style={styles.lightIcon}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
+
+        /* Scan box overlay */
         <View style={styles.overlay}>
           <View style={styles.scanBox} />
         </View>
 
-        {/* Result box */}
+        /* Result box */
         {scannedText && (
           <View style={styles.resultBox}>
             <Text style={styles.resultText}>{scannedText}</Text>
@@ -83,34 +136,71 @@ export default function ScanScreen() {
                 setScannedText(null);
               }}
             >
-              <Text style={styles.scanAgainText}>Scan again</Text>
+              <Text style={styles.scanAgainText}>Scan Again</Text>
             </TouchableOpacity>
           </View>
         )}
-      </View>
 
-      {/* Full-width bottom bar as the Back button */}
-      <TouchableOpacity
-        style={styles.bottomBar}
-        onPress={() => router.back()}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.bottomLabel}>Back</Text>
-      </TouchableOpacity>
-    </View>
+        /* Full-width bottom Back bar */
+        <TouchableOpacity
+          style={styles.bottomBar}
+          onPress={handleBackToDashboard}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.bottomLabel}>Back</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#000" },
+
+  fullScreen: {
     flex: 1,
-    backgroundColor: "#000",
-  },
-  cameraWrapper: {
-    flex: 1,
-    marginBottom: BOTTOM_BAR_HEIGHT, // keep camera above back bar
     position: "relative",
   },
+
+  /*Transparent Header Overlay*/
+  headerBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 110,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    backgroundColor: "transparent", 
+    zIndex: 10,
+  },
+  headerLeft: {
+    position: "absolute",
+    left: 16,
+    padding: 8,
+  },
+  arrowText: {
+    fontSize: 40,
+    fontWeight: "800",
+    color: "#2e7d32",
+  },
+  headerRight: {
+    position: "absolute",
+    right: 16,
+    padding: 4,
+  },
+  headerLogo: {
+    width: 140,
+    height: 140,
+  },
+  lightIcon: {
+    width: 40,
+    height: 40,
+  },
+
+  /*Overlay & scan box*/
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
@@ -124,9 +214,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "transparent",
   },
+
+  /*Result box */
   resultBox: {
     position: "absolute",
-    bottom: 110,
+    bottom: BOTTOM_BAR_HEIGHT + 20,
     left: 20,
     right: 20,
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -144,10 +236,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#2e7d32",
   },
-  scanAgainText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
+  scanAgainText: { color: "#fff", fontWeight: "600" },
+
+  /*Full-width bottom Back bar*/
   bottomBar: {
     position: "absolute",
     left: 0,
@@ -165,6 +256,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#2e7d32",
   },
+
+  /* Permission screens*/
   center: {
     flex: 1,
     justifyContent: "center",
@@ -172,11 +265,7 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#000",
   },
-  infoText: {
-    color: "#ffffff",
-    textAlign: "center",
-    marginTop: 12,
-  },
+  infoText: { color: "#fff", textAlign: "center", marginTop: 12 },
   backButton: {
     marginTop: 16,
     paddingHorizontal: 20,
@@ -184,10 +273,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#2e7d32",
   },
-  backText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
+  backText: { color: "#fff", fontWeight: "600" },
 });
+
 
 
