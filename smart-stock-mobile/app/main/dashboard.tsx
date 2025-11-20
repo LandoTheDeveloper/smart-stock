@@ -1,4 +1,3 @@
-// app/main/dashboard.tsx
 import React, { useState, useMemo } from "react";
 import {
   View,
@@ -18,6 +17,11 @@ import RecipeIcon from "../../assets/RecipeButton.png";
 import ScanIcon from "../../assets/ScanButton.png";
 import PantryIcon from "../../assets/PantryButton.png";
 
+import AppleAvatar from "../../assets/AppleAvatar.png";
+import CornAvatar from "../../assets/CornAvatar.png";
+import TurkeyAvatar from "../../assets/TurkeyAvatar.png";
+import BroccoliAvatar from "../../assets/BroccoliAvatar.png";
+
 const SAMPLE = [
   { item: "Chicken Breast", qty: 2, expires: "Nov 5", status: "warn" },
   { item: "Oats", qty: 1, expires: "Mar 2026", status: "ok" },
@@ -26,9 +30,23 @@ const SAMPLE = [
 
 const BOTTOM_BAR_HEIGHT = 95;
 
+function getAvatarSource(name: string) {
+  switch (name) {
+    case "AppleAvatar.png":
+      return AppleAvatar;
+    case "CornAvatar.png":
+      return CornAvatar;
+    case "TurkeyAvatar.png":
+      return TurkeyAvatar;
+    case "BroccoliAvatar.png":
+    default:
+      return BroccoliAvatar;
+  }
+}
+
 export default function Dashboard() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { avatar, displayName } = useAuth();
 
   const [q, setQ] = useState("");
 
@@ -49,18 +67,24 @@ export default function Dashboard() {
       ? "#ffb300"
       : "#d32f2f";
 
-  const handleSignOut = async () => {
-    await logout();
-    router.replace("/auth/login");
-  };
-
   return (
     <SafeAreaView style={styles.container}>
-      {/* Fixed header bar */}
+      {/* Header with avatar and logo */}
       <View style={styles.headerBar}>
-        <TouchableOpacity style={styles.headerSignOut} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={() => router.push("/main/profilepage")}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={getAvatarSource(avatar)}
+              style={styles.avatarImg}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+          <Text style={styles.displayName}>{displayName}</Text>
+        </View>
 
         <Image source={Logo} style={styles.headerLogo} resizeMode="contain" />
       </View>
@@ -72,7 +96,7 @@ export default function Dashboard() {
         >
           {/* KPI Cards */}
           <View style={styles.grid}>
-            <View style={[styles.card, styles.gridItem]}>
+            <View className="card" style={[styles.card, styles.gridItem]}>
               <Text style={styles.cardTitle}>Low Stock</Text>
               <Text style={styles.kpi}>{lowStock} items</Text>
               <Text style={styles.sub}>Needs restock soon</Text>
@@ -177,31 +201,41 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6fbf7" },
 
-  // Header bar at the top
   headerBar: {
-    height: 110,
-    backgroundColor: "#f6fbf7",
+    height: 130,
     borderBottomWidth: 1,
     borderBottomColor: "#e3ece5",
+    backgroundColor: "#f6fbf7",
     justifyContent: "center",
     alignItems: "center",
   },
-  headerSignOut: {
+  avatarContainer: {
     position: "absolute",
-    left: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    backgroundColor: "#2e7d32",
-    borderRadius: 999,
+    left: 16,
+    top: 18,
+    alignItems: "center",
   },
-  signOutText: {
-    color: "#fff",
+  avatarWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#2e7d32",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+  },
+  displayName: {
+    marginTop: 4,
+    fontSize: 12,
     fontWeight: "600",
-    fontSize: 14,
+    color: "#2e7d32",
   },
   headerLogo: {
-    width: 140,
-    height: 140,
+    width: 150,
+    height: 150,
   },
 
   contentWrapper: {
@@ -211,7 +245,7 @@ const styles = StyleSheet.create({
   scroll: {
     paddingTop: 16,
     paddingHorizontal: 20,
-    paddingBottom: BOTTOM_BAR_HEIGHT + 20,
+    paddingBottom: BOTTOM_BAR_HEIGHT + 20, // room for nav bar
   },
 
   grid: {
@@ -323,10 +357,11 @@ const styles = StyleSheet.create({
   },
 
   bottomIcon: {
-    width: 50,   
-    height: 50,
+    width: 42,
+    height: 42,
   },
 });
+
 
 
 
