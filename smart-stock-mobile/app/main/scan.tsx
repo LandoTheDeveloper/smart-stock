@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Image,
   SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
@@ -18,13 +19,31 @@ import LightOnIcon from "../../assets/LightOnIcon.png";
 
 const BOTTOM_BAR_HEIGHT = 95;
 
+interface ProductData {
+  product_name?: string;
+  brands?: string;
+  quantity?: string;
+  categories?: string;
+  ingredients_text?: string;
+  image_url?: string;
+  nutriscore_grade?: string;
+  nutriments?: {
+    energy_value?: number;
+    energy_unit?: string;
+  }
+  allergens?: string;
+}
+
 export default function ScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
 
   const [scanned, setScanned] = useState(false);
-  const [scannedText, setScannedText] = useState<string | null>(null);
+  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [productData, setProductData] = useState<ProductData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (!permission) {
     return (
@@ -56,9 +75,35 @@ export default function ScanScreen() {
     );
   }
 
+  const fetchProductData = async (barcode: string) => {
+    setLoading(true);
+    setError(null);
+    setProductData(null);
+
+    try {
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
+      );
+      const data = await response.json();
+
+      if (data.status === 1 && data.product) {
+        console.log(data.product)
+        setProductData(data.product);
+      } else {
+        setError("Product not found in OpenFoodFacts database");
+      }
+    } catch (err) {
+      setError("Failed to fetch product data. Please try again.");
+      console.error("OpenFoodFacts API error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBarCodeScanned = ({ type, data }: any) => {
     setScanned(true);
-    setScannedText(`Type: ${type}\nData: ${data}`);
+    setScannedBarcode(data);
+    fetchProductData(data);
   };
 
   const handleBackToDashboard = () => {
@@ -69,10 +114,17 @@ export default function ScanScreen() {
     setTorchOn((prev) => !prev);
   };
 
+  const handleScanAgain = () => {
+    setScanned(false);
+    setScannedBarcode(null);
+    setProductData(null);
+    setError(null);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.fullScreen}>
-        /* Camera fills the background */
+        {/* Camera fills the background */}
         <CameraView
           style={StyleSheet.absoluteFillObject}
           facing="back"
@@ -91,7 +143,7 @@ export default function ScanScreen() {
           onBarcodeScanned={scanned ? undefined : (e) => handleBarCodeScanned(e)}
         />
 
-        /* Transparent Header Overlay */
+        {/* Transparent Header Overlay */}
         <View style={styles.headerBar}>
           {/* Arrow back to dashboard */}
           <TouchableOpacity
@@ -102,10 +154,10 @@ export default function ScanScreen() {
             <Text style={styles.arrowText}>←</Text>
           </TouchableOpacity>
 
-          /* Center logo */
+          {/* Center logo */}
           <Image source={Logo} style={styles.headerLogo} resizeMode="contain" />
 
-          /* Torch toggle on the right */
+          {/* Torch toggle on the right */}
           <TouchableOpacity
             style={styles.headerRight}
             onPress={toggleTorch}
@@ -119,29 +171,84 @@ export default function ScanScreen() {
           </TouchableOpacity>
         </View>
 
-        /* Scan box overlay */
+        {/* Scan box overlay */}
         <View style={styles.overlay}>
           <View style={styles.scanBox} />
         </View>
 
-        /* Result box */
-        {scannedText && (
+        {/* Result box */}
+        {(loading || productData || error) && (
           <View style={styles.resultBox}>
-            <Text style={styles.resultText}>{scannedText}</Text>
+            <ScrollView style={styles.resultScroll}>
+              {loading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#2e7d32" size="large" />
+                  <Text style={styles.loadingText}>
+                    Fetching product information...
+                  </Text>
+                </View>
+              )}
+
+              {error && (
+                <View>
+                  <Text style={styles.errorText}>{error}</Text>
+                  <Text style={styles.barcodeText}>Barcode: {scannedBarcode}</Text>
+                </View>
+              )}
+
+              {productData && (
+                <View>
+                  {productData.image_url && (
+                    <Image
+                      source={{ uri: productData.image_url }}
+                      style={styles.productImage}
+                      resizeMode="contain"
+                    />
+                  )}
+                  
+                  <Text style={styles.productTitle}>
+                    {productData.product_name || "Unknown Product"}
+                  </Text>
+                  
+                  {productData.brands && (
+                    <Text style={styles.productDetail}>
+                      Brand: {productData.brands}
+                    </Text>
+                  )}
+                  
+                  {productData.quantity && (
+                    <Text style={styles.productDetail}>
+                      Quantity: {productData.quantity}
+                    </Text>
+                  )}
+                  
+                  {productData.nutriments?.energy_value && (
+                    <Text style={styles.productDetail}>
+                      Calories: {productData.nutriments?.energy_value} {productData.nutriments?.energy_unit}
+                    </Text>
+                  )}
+                  
+                  {productData.nutriscore_grade && (
+                    <Text style={styles.productDetail}>
+                      Nutri-Score: {productData.nutriscore_grade.toUpperCase()}
+                    </Text>
+                  )}
+                  
+                  <Text style={styles.barcodeText}>Barcode: {scannedBarcode}</Text>
+                </View>
+              )}
+            </ScrollView>
 
             <TouchableOpacity
               style={styles.scanAgainButton}
-              onPress={() => {
-                setScanned(false);
-                setScannedText(null);
-              }}
+              onPress={handleScanAgain}
             >
               <Text style={styles.scanAgainText}>Scan Again</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        /* Full-width bottom Back bar */
+        {/* Full-width bottom Back bar */}
         <TouchableOpacity
           style={styles.bottomBar}
           onPress={handleBackToDashboard}
@@ -173,7 +280,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
-    backgroundColor: "transparent", 
+    backgroundColor: "transparent",
     zIndex: 10,
   },
   headerLeft: {
@@ -221,20 +328,58 @@ const styles = StyleSheet.create({
     bottom: BOTTOM_BAR_HEIGHT + 20,
     left: 20,
     right: 20,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    maxHeight: 400,
+    backgroundColor: "rgba(0,0,0,0.9)",
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
   },
-  resultText: {
+  resultScroll: {
+    maxHeight: 320,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  loadingText: {
     color: "#fff",
+    marginTop: 12,
+    fontSize: 14,
+  },
+  productImage: {
+    width: "100%",
+    height: 150,
+    marginBottom: 12,
+    borderRadius: 8,
+  },
+  productTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  productDetail: {
+    color: "#e0e0e0",
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  barcodeText: {
+    color: "#aaa",
+    fontSize: 12,
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  errorText: {
+    color: "#ff6b6b",
+    fontSize: 14,
     marginBottom: 8,
   },
   scanAgainButton: {
     alignSelf: "flex-end",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: "#2e7d32",
+    marginTop: 12,
   },
   scanAgainText: { color: "#fff", fontWeight: "600" },
 
@@ -275,6 +420,3 @@ const styles = StyleSheet.create({
   },
   backText: { color: "#fff", fontWeight: "600" },
 });
-
-
-
