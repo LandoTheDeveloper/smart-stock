@@ -141,14 +141,6 @@ export default function ScanScreen() {
           </View>
         )}
 
-        /* Full-width bottom Back bar */
-        <TouchableOpacity
-          style={styles.bottomBar}
-          onPress={handleBackToDashboard}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.bottomLabel}>Back</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

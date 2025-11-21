@@ -13,16 +13,19 @@ import {
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/authcontext";
 
+// Icons & Logos
 import Logo from "../../assets/SmartStockLogoTransparent.png";
 import RecipeIcon from "../../assets/RecipeButton.png";
 import ScanIcon from "../../assets/ScanButton.png";
 import PantryIcon from "../../assets/PantryButton.png";
 
+// Avatars
 import AppleAvatar from "../../assets/AppleAvatar.png";
 import CornAvatar from "../../assets/CornAvatar.png";
 import TurkeyAvatar from "../../assets/TurkeyAvatar.png";
 import BroccoliAvatar from "../../assets/BroccoliAvatar.png";
 
+// Hard coded items (Remove Later)
 const SAMPLE = [
   { item: "Chicken Breast", qty: 2, expires: "Nov 5", status: "warn" },
   { item: "Oats", qty: 1, expires: "Mar 2026", status: "ok" },
@@ -60,6 +63,7 @@ export default function Dashboard() {
   const lowStock = SAMPLE.filter((a) => a.qty <= 2).length;
   const expiringSoon = SAMPLE.filter((a) => a.status !== "ok").length;
 
+  // Expiration Pill Card
   const pillColor = (status: string) =>
     status === "ok"
       ? "#2e7d32"
@@ -94,7 +98,7 @@ export default function Dashboard() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* KPI Cards: Low Stock + Expiring Soon side by side */}
+          // Low Stock & Expiring Soon cards side by side
           <View style={styles.grid}>
             <View style={[styles.card, styles.gridItemHalf]}>
               <Text style={styles.cardTitle}>Low Stock</Text>
@@ -109,7 +113,7 @@ export default function Dashboard() {
             </View>
           </View>
 
-          {/* Overview Card (formerly "Recent Activity") */}
+          // Overview Card
           <View style={styles.card}>
             <Text style={styles.tableTitle}>Overview</Text>
 
@@ -150,7 +154,7 @@ export default function Dashboard() {
           </View>
         </ScrollView>
 
-        {/* Full-width bottom bar with icon buttons */}
+        // Bottom bar with icon buttons
         <View style={styles.bottomBarBase}>
           <View style={styles.bottomBarContent}>
             <TouchableOpacity
@@ -193,13 +197,13 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f6fbf7" },
+  container: { flex: 1, backgroundColor: "#ffffff" },
 
   headerBar: {
-    height: 130,
+    height: 100,
     borderBottomWidth: 1,
     borderBottomColor: "#e3ece5",
-    backgroundColor: "#f6fbf7",
+    backgroundColor: "#ffffff",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -209,6 +213,8 @@ const styles = StyleSheet.create({
     top: 18,
     alignItems: "center",
   },
+
+  // Avatar Circle In Header
   avatarWrapper: {
     width: 52,
     height: 52,
@@ -216,17 +222,24 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 2,
     borderColor: "#2e7d32",
+    backgroundColor: "#f6fbf7",
   },
+
+  // Avatar Image Specs
   avatarImg: {
     width: "100%",
     height: "100%",
   },
+
+  // Display Name Specs
   displayName: {
     marginTop: 4,
     fontSize: 12,
     fontWeight: "600",
     color: "#2e7d32",
   },
+
+  // Header Logo Specs
   headerLogo: {
     width: 150,
     height: 150,
@@ -234,6 +247,7 @@ const styles = StyleSheet.create({
 
   contentWrapper: {
     flex: 1,
+    backgroundColor: "#f6fbf7",
   },
 
   scroll: {

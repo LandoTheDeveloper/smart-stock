@@ -35,6 +35,16 @@ export default function ProfilePage() {
 
   return (
     <SafeAreaView style={styles.container}>
+
+      {/* Back Arrow (same style as Scan page) */}
+      <TouchableOpacity
+        style={styles.backArrow}
+        onPress={() => router.replace("/main/dashboard")}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.arrowText}>←</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>Profile</Text>
 
       {/* Avatar */}
@@ -82,13 +92,6 @@ export default function ProfilePage() {
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
 
-      {/* Back button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.replace("/main/dashboard")}
-      >
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -102,10 +105,25 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
+  /* BACK ARROW */
+  backArrow: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    zIndex: 10,
+    padding: 6,
+  },
+  arrowText: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#2e7d32",
+  },
+
   title: {
     fontSize: 28,
     fontWeight: "700",
     textAlign: "center",
+    marginTop: 10,
     marginBottom: 20,
     color: "#2e7d32",
   },
@@ -121,6 +139,7 @@ const styles = StyleSheet.create({
     borderRadius: AVATAR_SIZE / 2,
     borderWidth: 4,
     borderColor: "#2e7d32",
+    backgroundColor: "#ffffff", // white background
   },
 
   input: {
@@ -151,6 +170,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 2,
     borderColor: "transparent",
+    backgroundColor: "#ffffff", // white background
   },
 
   selectedAvatar: {
@@ -173,15 +193,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-
-  backButton: {
-    marginTop: 14,
-    padding: 12,
-    backgroundColor: "#ccc",
-    borderRadius: 8,
-  },
-  backText: {
-    textAlign: "center",
-    fontWeight: "600",
-  },
 });
+
