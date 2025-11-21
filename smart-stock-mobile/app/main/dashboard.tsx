@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import {
   View,
@@ -58,7 +59,6 @@ export default function Dashboard() {
 
   const lowStock = SAMPLE.filter((a) => a.qty <= 2).length;
   const expiringSoon = SAMPLE.filter((a) => a.status !== "ok").length;
-  const pantrySize = 42;
 
   const pillColor = (status: string) =>
     status === "ok"
@@ -94,30 +94,24 @@ export default function Dashboard() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* KPI Cards */}
+          {/* KPI Cards: Low Stock + Expiring Soon side by side */}
           <View style={styles.grid}>
-            <View className="card" style={[styles.card, styles.gridItem]}>
+            <View style={[styles.card, styles.gridItemHalf]}>
               <Text style={styles.cardTitle}>Low Stock</Text>
-              <Text style={styles.kpi}>{lowStock} items</Text>
-              <Text style={styles.sub}>Needs restock soon</Text>
+              <Text style={styles.kpi}>{lowStock}</Text>
+              <Text style={styles.sub}>Items to restock</Text>
             </View>
 
-            <View style={[styles.card, styles.gridItem]}>
+            <View style={[styles.card, styles.gridItemHalf]}>
               <Text style={styles.cardTitle}>Expiring Soon</Text>
               <Text style={styles.kpi}>{expiringSoon}</Text>
               <Text style={styles.sub}>Within 5 days</Text>
             </View>
-
-            <View style={[styles.card, styles.gridItem]}>
-              <Text style={styles.cardTitle}>Pantry Size</Text>
-              <Text style={styles.kpi}>{pantrySize}</Text>
-              <Text style={styles.sub}>Total tracked items</Text>
-            </View>
           </View>
 
-          {/* Activity Table */}
+          {/* Overview Card (formerly "Recent Activity") */}
           <View style={styles.card}>
-            <Text style={styles.tableTitle}>Recent Activity</Text>
+            <Text style={styles.tableTitle}>Overview</Text>
 
             <TextInput
               style={styles.search}
@@ -245,19 +239,17 @@ const styles = StyleSheet.create({
   scroll: {
     paddingTop: 16,
     paddingHorizontal: 20,
-    paddingBottom: BOTTOM_BAR_HEIGHT + 20, // room for nav bar
+    paddingBottom: BOTTOM_BAR_HEIGHT + 20,
   },
 
   grid: {
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "space-between",
     marginBottom: 18,
   },
 
-  gridItem: {
-    width: "100%",
-    marginBottom: 12,
+  gridItemHalf: {
+    width: "48%",
   },
 
   card: {
@@ -357,10 +349,12 @@ const styles = StyleSheet.create({
   },
 
   bottomIcon: {
-    width: 42,
-    height: 42,
+    width: 70,
+    height: 70,
   },
 });
+
+
 
 
 
