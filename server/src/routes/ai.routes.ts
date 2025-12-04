@@ -6,5 +6,5 @@ const router = express.Router();
 
 router.post('/', authenticate, generateContent);
 router.post('/recipes', authenticate, generateRecipes);
-
+// retrigger deployment
 export default router;
