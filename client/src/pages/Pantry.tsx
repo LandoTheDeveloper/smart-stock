@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { api } from '../lib/api';
 
 type PantryItem = {
-  id: string;
+  _id: string;
   name: string;
-  qty: number;
-  unit: string;
-  expires: string; // YYYY-MM-DD
-  macros: {
+  quantity: number;
+  unit?: string;
+  expirationDate?: string;
+  macros?: {
     kcal: number;
     protein: number;
     carbs: number;
@@ -15,56 +16,42 @@ type PantryItem = {
   };
 };
 
-const INITIAL_ITEMS: PantryItem[] = [
-  {
-    id: '1',
-    name: 'Chicken Breast',
-    qty: 2,
-    unit: 'packs',
-    expires: new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10),
-    macros: { kcal: 165, protein: 31, carbs: 0, fat: 3.6, serving: '100 g' },
-  },
-  {
-    id: '2',
-    name: 'Oats',
-    qty: 1,
-    unit: 'bag',
-    expires: '2026-03-01',
-    macros: { kcal: 389, protein: 17, carbs: 66, fat: 7, serving: '100 g' },
-  },
-  {
-    id: '3',
-    name: 'Greek Yogurt',
-    qty: 5,
-    unit: 'cups',
-    expires: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
-    macros: { kcal: 59, protein: 10, carbs: 3.6, fat: 0.4, serving: '100 g' },
-  },
-  {
-    id: '4',
-    name: 'Jasmine Rice',
-    qty: 2,
-    unit: 'kg',
-    expires: '2027-01-10',
-    macros: { kcal: 365, protein: 7, carbs: 80, fat: 0.6, serving: '100 g' },
-  },
-  {
-    id: '5',
-    name: 'Olive Oil',
-    qty: 1,
-    unit: 'bottle',
-    expires: '2026-12-31',
-    macros: { kcal: 884, protein: 0, carbs: 0, fat: 100, serving: '100 g' },
-  },
-];
-
-type EditState = Record<string, { qty: number; expires: string }>;
+type EditState = Record<string, { quantity: number; expirationDate: string }>;
 
 export default function Pantry() {
-  const [items, setItems] = useState<PantryItem[]>(INITIAL_ITEMS);
+  const [items, setItems] = useState<PantryItem[]>([]);
   const [editing, setEditing] = useState<EditState>({});
   const [q, setQ] = useState('');
   const [macroItem, setMacroItem] = useState<PantryItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    quantity: 1,
+    unit: '',
+    expirationDate: ''
+  });
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.get<{ success: boolean; data: PantryItem[] }>('/api/pantry');
+      if (response.data.success) {
+        setItems(response.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch pantry items:', err);
+      setError(err.response?.data?.message || 'Failed to load pantry items');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -73,54 +60,139 @@ export default function Pantry() {
   }, [q, items]);
 
   const startEdit = (id: string) => {
-    const it = items.find((i) => i.id === id);
+    const it = items.find((i) => i._id === id);
     if (!it) return;
     setEditing((prev) => ({
       ...prev,
-      [id]: { qty: it.qty, expires: it.expires },
+      [id]: {
+        quantity: it.quantity,
+        expirationDate: it.expirationDate ? it.expirationDate.slice(0, 10) : ''
+      }
     }));
   };
+
   const cancelEdit = (id: string) =>
     setEditing((prev) => {
       const c = { ...prev };
       delete c[id];
       return c;
     });
-  const saveEdit = (id: string) => {
+
+  const saveEdit = async (id: string) => {
     const e = editing[id];
     if (!e) return;
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === id ? { ...i, qty: e.qty, expires: e.expires } : i
-      )
-    );
-    cancelEdit(id);
+
+    try {
+      const response = await api.put(`/api/pantry/${id}`, {
+        quantity: e.quantity,
+        expirationDate: e.expirationDate || undefined
+      });
+
+      if (response.data.success) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i._id === id
+              ? { ...i, quantity: e.quantity, expirationDate: e.expirationDate }
+              : i
+          )
+        );
+        cancelEdit(id);
+      }
+    } catch (err: any) {
+      console.error('Failed to update item:', err);
+      alert(err.response?.data?.message || 'Failed to update item');
+    }
   };
+
   const updateEditField = (
     id: string,
-    field: 'qty' | 'expires',
+    field: 'quantity' | 'expirationDate',
     value: string
   ) => {
     setEditing((prev) => ({
       ...prev,
       [id]: {
         ...prev[id],
-        [field]: field === 'qty' ? Math.max(0, Number(value) || 0) : value,
-      },
+        [field]: field === 'quantity' ? Math.max(0, Number(value) || 0) : value
+      }
     }));
   };
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    cancelEdit(id);
+
+  const removeItem = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this item?')) return;
+
+    try {
+      const response = await api.delete(`/api/pantry/${id}`);
+      if (response.data.success) {
+        setItems((prev) => prev.filter((i) => i._id !== id));
+        cancelEdit(id);
+      }
+    } catch (err: any) {
+      console.error('Failed to delete item:', err);
+      alert(err.response?.data?.message || 'Failed to delete item');
+    }
   };
 
-  const statusPill = (iso: string) => {
-    const days = Math.floor((new Date(iso).getTime() - Date.now()) / 86400000);
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newItem.name.trim()) {
+      alert('Item name is required');
+      return;
+    }
+
+    try {
+      const response = await api.post('/api/pantry', {
+        name: newItem.name,
+        quantity: newItem.quantity,
+        unit: newItem.unit || undefined,
+        expirationDate: newItem.expirationDate || undefined
+      });
+
+      if (response.data.success) {
+        setItems((prev) => [...prev, response.data.data]);
+        setShowAddModal(false);
+        setNewItem({ name: '', quantity: 1, unit: '', expirationDate: '' });
+      }
+    } catch (err: any) {
+      console.error('Failed to add item:', err);
+      alert(err.response?.data?.message || 'Failed to add item');
+    }
+  };
+
+  const statusPill = (isoOrDate?: string) => {
+    if (!isoOrDate) return <span className='pill warn'>No Date</span>;
+
+    const date = new Date(isoOrDate);
+    const days = Math.floor((date.getTime() - Date.now()) / 86400000);
+
     if (isNaN(days)) return <span className='pill warn'>Unknown</span>;
     if (days < 0) return <span className='pill danger'>Expired</span>;
     if (days <= 5) return <span className='pill warn'>Soon</span>;
     return <span className='pill ok'>OK</span>;
   };
+
+  const formatDate = (isoDate?: string) => {
+    if (!isoDate) return 'N/A';
+    const date = new Date(isoDate);
+    return date.toISOString().slice(0, 10);
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#6b726d' }}>
+        Loading pantry...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#dc2626' }}>
+        {error}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -134,7 +206,9 @@ export default function Pantry() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            <button className='btn-soft'>Add Item</button>
+            <button className='btn-soft' onClick={() => setShowAddModal(true)}>
+              Add Item
+            </button>
           </div>
         </div>
 
@@ -151,17 +225,17 @@ export default function Pantry() {
           </div>
 
           {filtered.map((it) => {
-            const isEditing = Boolean(editing[it.id]);
-            const e = editing[it.id];
+            const isEditing = Boolean(editing[it._id]);
+            const e = editing[it._id];
             return (
               <div
                 className='row'
-                key={it.id}
+                key={it._id}
                 style={{ gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1.6fr' }}
               >
                 <div>
                   <div className='cell-title'>{it.name}</div>
-                  <div className='cell-sub'>{it.unit}</div>
+                  <div className='cell-sub'>{it.unit || 'units'}</div>
                 </div>
                 <div>
                   {isEditing ? (
@@ -169,14 +243,14 @@ export default function Pantry() {
                       className='input input-sm'
                       type='number'
                       min={0}
-                      value={e?.qty ?? it.qty}
+                      value={e?.quantity ?? it.quantity}
                       onChange={(ev) =>
-                        updateEditField(it.id, 'qty', ev.target.value)
+                        updateEditField(it._id, 'quantity', ev.target.value)
                       }
                       style={{ width: 90 }}
                     />
                   ) : (
-                    <span className='badge'>{it.qty}</span>
+                    <span className='badge'>{it.quantity}</span>
                   )}
                 </div>
                 <div>
@@ -184,35 +258,51 @@ export default function Pantry() {
                     <input
                       className='input input-sm'
                       type='date'
-                      value={e?.expires ?? it.expires}
+                      value={
+                        e?.expirationDate ??
+                        (it.expirationDate
+                          ? formatDate(it.expirationDate)
+                          : '')
+                      }
                       onChange={(ev) =>
-                        updateEditField(it.id, 'expires', ev.target.value)
+                        updateEditField(
+                          it._id,
+                          'expirationDate',
+                          ev.target.value
+                        )
                       }
                     />
                   ) : (
-                    <span>{it.expires}</span>
+                    <span>{formatDate(it.expirationDate)}</span>
                   )}
                 </div>
                 <div>
                   {statusPill(
-                    isEditing ? e?.expires ?? it.expires : it.expires
+                    isEditing
+                      ? e?.expirationDate ?? it.expirationDate
+                      : it.expirationDate
                   )}
                 </div>
                 <div className='actions'>
-                  <button className='btn-soft' onClick={() => setMacroItem(it)}>
-                    View Macros
-                  </button>
+                  {it.macros && (
+                    <button
+                      className='btn-soft'
+                      onClick={() => setMacroItem(it)}
+                    >
+                      View Macros
+                    </button>
+                  )}
                   {!isEditing ? (
                     <>
                       <button
                         className='btn-primary'
-                        onClick={() => startEdit(it.id)}
+                        onClick={() => startEdit(it._id)}
                       >
                         Edit
                       </button>
                       <button
                         className='btn-outline'
-                        onClick={() => removeItem(it.id)}
+                        onClick={() => removeItem(it._id)}
                       >
                         Delete
                       </button>
@@ -221,13 +311,13 @@ export default function Pantry() {
                     <>
                       <button
                         className='btn-primary'
-                        onClick={() => saveEdit(it.id)}
+                        onClick={() => saveEdit(it._id)}
                       >
                         Save
                       </button>
                       <button
                         className='btn-outline'
-                        onClick={() => cancelEdit(it.id)}
+                        onClick={() => cancelEdit(it._id)}
                       >
                         Cancel
                       </button>
@@ -241,14 +331,116 @@ export default function Pantry() {
           {filtered.length === 0 && (
             <div className='row'>
               <div style={{ gridColumn: '1 / -1', color: '#6b726d' }}>
-                No items.
+                {items.length === 0
+                  ? 'No items in pantry. Click "Add Item" to get started.'
+                  : 'No items match your search.'}
               </div>
             </div>
           )}
         </div>
       </section>
 
-      {macroItem && (
+      {showAddModal && (
+        <div
+          className='modal-backdrop'
+          onClick={() => setShowAddModal(false)}
+        >
+          <div className='modal' onClick={(e) => e.stopPropagation()}>
+            <form onSubmit={handleAddItem}>
+              <div className='modal-header'>
+                <div className='modal-title'>Add New Item</div>
+                <button
+                  type='button'
+                  className='btn-outline'
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+              <div className='modal-body'>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                      Item Name *
+                    </label>
+                    <input
+                      className='input'
+                      type='text'
+                      value={newItem.name}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                      placeholder='e.g., Chicken Breast'
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                      Quantity
+                    </label>
+                    <input
+                      className='input'
+                      type='number'
+                      min={0}
+                      value={newItem.quantity}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          quantity: Math.max(0, Number(e.target.value) || 0)
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                      Unit
+                    </label>
+                    <input
+                      className='input'
+                      type='text'
+                      value={newItem.unit}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({ ...prev, unit: e.target.value }))
+                      }
+                      placeholder='e.g., packs, kg, bottles'
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                      Expiration Date
+                    </label>
+                    <input
+                      className='input'
+                      type='date'
+                      value={newItem.expirationDate}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          expirationDate: e.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className='modal-footer'>
+                <button
+                  type='button'
+                  className='btn-outline'
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type='submit' className='btn-primary'>
+                  Add Item
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {macroItem && macroItem.macros && (
         <div className='modal-backdrop' onClick={() => setMacroItem(null)}>
           <div className='modal' onClick={(e) => e.stopPropagation()}>
             <div className='modal-header'>

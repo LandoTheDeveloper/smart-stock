@@ -1,0 +1,68 @@
+import { Request, Response } from 'express';
+import PantryItem from '../models/PantryItem';
+
+export const getOverview = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const now = new Date();
+    const fiveDaysFromNow = new Date();
+    fiveDaysFromNow.setDate(now.getDate() + 5);
+
+    const allItems = await PantryItem.find({ userId }).sort({ lastUpdated: -1 });
+
+    const lowStockItems = allItems.filter(item => item.quantity <= 2);
+    const expiringSoonItems = allItems.filter(item => {
+      if (!item.expirationDate) return false;
+      return item.expirationDate <= fiveDaysFromNow;
+    });
+
+    const recentActivity = allItems.slice(0, 10).map(item => {
+      let status: 'ok' | 'warn' | 'danger' = 'ok';
+
+      if (item.expirationDate) {
+        const daysUntilExpiry = Math.ceil((item.expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysUntilExpiry <= 2) {
+          status = 'danger';
+        } else if (daysUntilExpiry <= 5) {
+          status = 'warn';
+        }
+      }
+
+      return {
+        id: item._id,
+        item: item.name,
+        qty: item.quantity,
+        expires: item.expirationDate
+          ? item.expirationDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: item.expirationDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+          : 'N/A',
+        status
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        lowStock: lowStockItems.length,
+        expiringSoon: expiringSoonItems.length,
+        pantrySize: allItems.length,
+        recentActivity
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching overview:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch overview data',
+      error: error.message
+    });
+  }
+};

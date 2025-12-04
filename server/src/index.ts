@@ -34,7 +34,13 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Mount all API routes
+console.log('Mounting /api routes...');
 app.use('/api', routes);
+console.log('/api routes mounted');
+
+app.get('/api/test', (req, res) => {
+  res.json({ test: 'works' });
+});
 
 // Error handling middleware
 app.use(
@@ -59,3 +65,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Smart Stock API listening on port ${PORT}`);
 });
+// restart
+ 
