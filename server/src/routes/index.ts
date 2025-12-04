@@ -4,6 +4,9 @@ import aiRoutes from './ai.routes';
 import dashboardRoutes from './dashboard.routes';
 import pantryRoutes from './pantry.routes';
 
+console.log('Dashboard routes stack:', dashboardRoutes.stack?.length);
+console.log('Pantry routes stack:', pantryRoutes.stack?.length);
+
 const router = express.Router();
 
 router.use('/auth', authRoutes);
