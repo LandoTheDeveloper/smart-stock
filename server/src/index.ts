@@ -1,11 +1,13 @@
 import express, { Application, Request, Response } from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
 import cors from 'cors';
 import morgan from 'morgan';
 import { connectDatabase } from './config/database';
-import routes from './routes';
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
+import routes from './routes';
 
 const app: Application = express();
 
@@ -14,10 +16,16 @@ connectDatabase();
 
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+    ],
+    credentials: true,
+  })
+);
 app.use(morgan('dev'));
 
 // Root route
@@ -29,14 +37,21 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/api', routes);
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    console.error('Error:', err);
+    res.status(err.status || 500).json({
+      success: false,
+      message: err.message || 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    });
+  }
+);
 
 // Start server
 const PORT = process.env.PORT || 5000;

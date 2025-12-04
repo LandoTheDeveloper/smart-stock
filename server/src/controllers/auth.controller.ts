@@ -4,6 +4,13 @@ import User, { IUser } from '../models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
+if (!JWT_SECRET) {
+  console.error(
+    'JWT_SECRET NOT LOADING FROM .ENV FOR SOME REASON. API WILL NOT WORK.'
+  );
+  process.exit(1);
+}
+
 interface RegisterBody {
   email: string;
   password: string;
@@ -25,7 +32,7 @@ export const register = async (
     if (!email || !password || !name) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields'
+        message: 'Please provide all required fields',
       });
     }
 
@@ -33,14 +40,14 @@ export const register = async (
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists'
+        message: 'User already exists',
       });
     }
 
     const user: IUser = await User.create({
       email,
       password,
-      name
+      name,
     });
 
     const token = jwt.sign(
@@ -57,37 +64,36 @@ export const register = async (
         id: user.id.toString(),
         email: user.email,
         name: user.name,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during registration'
+      message: 'Server error during registration',
     });
   }
 };
 
-export const login = async (
-  req: Request<{}, {}, LoginBody>,
-  res: Response
-) => {
+export const login = async (req: Request<{}, {}, LoginBody>, res: Response) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password'
+        message: 'Please provide email and password',
       });
     }
 
-    const user: IUser | null = await User.findOne({ email }).select('+password');
+    const user: IUser | null = await User.findOne({ email }).select(
+      '+password'
+    );
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid credentials',
       });
     }
 
@@ -95,7 +101,7 @@ export const login = async (
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid credentials',
       });
     }
 
@@ -117,14 +123,14 @@ export const login = async (
         email: user.email,
         name: user.name,
         role: user.role,
-        lastLogin: user.lastLogin
-      }
+        lastLogin: user.lastLogin,
+      },
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during login'
+      message: 'Server error during login',
     });
   }
 };
@@ -132,6 +138,6 @@ export const login = async (
 export const getProfile = async (req: Request, res: Response) => {
   res.json({
     success: true,
-    user: req.user
+    user: req.user,
   });
 };
