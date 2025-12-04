@@ -47,8 +47,12 @@ jobs:
           set -e
           APP_DIR=/var/www/smart-stock
           cd "$APP_DIR"
+          [ -f server/.env ] && cp server/.env /tmp/server.env.bak || true
+          [ -f client/.env ] && cp client/.env /tmp/client.env.bak || true
           git reset --hard HEAD
           git pull --ff-only --quiet
+          [ -f /tmp/server.env.bak ] && cp /tmp/server.env.bak server/.env || true
+          [ -f /tmp/client.env.bak ] && cp /tmp/client.env.bak client/.env || true
           mkdir -p client
           rm -rf client/dist
           tar -xzf /root/client_dist.tgz -C client
