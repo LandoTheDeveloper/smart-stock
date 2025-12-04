@@ -9,6 +9,9 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 import routes from './routes';
 
+console.log('Routes object:', routes);
+console.log('Routes stack:', routes.stack?.map((r: any) => ({ path: r.route?.path, regexp: r.regexp?.toString(), name: r.name })));
+
 const app: Application = express();
 
 // Connect to MongoDB
