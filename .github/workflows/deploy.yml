@@ -57,7 +57,7 @@ jobs:
           rm -rf client/dist
           tar -xzf /root/client_dist.tgz -C client
           cd server && npm install --no-audit --no-fund
-          pkill -f "ts-node src/index.ts" || true
-          nohup npx ts-node src/index.ts > "$APP_DIR/server.out" 2>&1 &
+          pm2 restart smartstock-api || pm2 start ecosystem.config.js
+          pm2 save
           cd ..
           EOF
