@@ -67,8 +67,25 @@ export const register = async (
         role: user.role,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Register error:', error);
+
+    if (error.name === 'ValidationError' && error.errors) {
+      const messages = Object.values(error.errors).map((err: any) => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', '),
+      });
+    }
+
+    if (error.errors) {
+      const messages = Object.values(error.errors).map((err: any) => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', '),
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error during registration',
