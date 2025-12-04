@@ -1,10 +1,10 @@
 import express from 'express';
-import { generateContent } from '../controllers/ai.controller';
+import { generateContent, generateRecipes } from '../controllers/ai.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
 const router = express.Router();
 
-// Optionally protect with authentication
 router.post('/', authenticate, generateContent);
+router.post('/recipes', authenticate, generateRecipes);
 
 export default router;

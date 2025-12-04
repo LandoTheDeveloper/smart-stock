@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { api } from '../lib/api';
 
 type Recipe = {
   id: string;
@@ -14,91 +15,49 @@ type Recipe = {
   steps: string[];
 };
 
-const RECIPES: Recipe[] = [
-  {
-    id: 'r1',
-    title: 'High-Protein Chicken Rice Bowl',
-    minutes: 20,
-    servings: 2,
-    tags: ['quick', 'pantry-friendly'],
-    kcal: 560,
-    protein: 45,
-    carbs: 60,
-    fat: 15,
-    ingredients: [
-      { name: 'Chicken Breast', amount: '300 g' },
-      { name: 'Jasmine Rice (cooked)', amount: '2 cups' },
-      { name: 'Olive Oil', amount: '1 tbsp' },
-      { name: 'Salt & Pepper', amount: 'to taste' },
-    ],
-    steps: [
-      'Cook or reheat rice.',
-      'Sear chicken in oil, season, and slice.',
-      'Assemble bowls and serve.',
-    ],
-  },
-  {
-    id: 'r2',
-    title: 'Greek Yogurt Parfait',
-    minutes: 5,
-    servings: 1,
-    tags: ['breakfast', 'no-cook'],
-    kcal: 300,
-    protein: 25,
-    carbs: 40,
-    fat: 5,
-    ingredients: [
-      { name: 'Greek Yogurt', amount: '200 g' },
-      { name: 'Oats (dry)', amount: '30 g' },
-      { name: 'Honey', amount: '1 tbsp' },
-    ],
-    steps: [
-      'Layer yogurt, oats, and honey in a bowl.',
-      'Top with fruit or nuts if available.',
-    ],
-  },
-  {
-    id: 'r3',
-    title: 'Olive Oil Fried Rice',
-    minutes: 12,
-    servings: 2,
-    tags: ['quick', 'leftovers'],
-    kcal: 520,
-    protein: 12,
-    carbs: 75,
-    fat: 18,
-    ingredients: [
-      { name: 'Jasmine Rice (cold)', amount: '2 cups' },
-      { name: 'Olive Oil', amount: '1.5 tbsp' },
-      { name: 'Eggs (optional)', amount: '2' },
-      { name: 'Salt & Pepper', amount: 'to taste' },
-    ],
-    steps: [
-      'Heat oil, add rice and fry.',
-      'Push aside, scramble eggs, combine and season.',
-    ],
-  },
-];
-
 export default function Recipes() {
   const [q, setQ] = useState('');
   const [tag, setTag] = useState<string | 'all'>('all');
   const [active, setActive] = useState<Recipe | null>(null);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [userPrompt, setUserPrompt] = useState('');
+
+  const handleGenerateRecipes = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const payload = {
+        userPrompt: userPrompt.trim() || undefined,
+      };
+
+      const response = await api.post('/api/generate/recipes', payload);
+
+      if (response.data.success) {
+        setRecipes(response.data.recipes);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to generate recipes');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
-    RECIPES.forEach((r) => r.tags.forEach((t) => s.add(t)));
+    recipes.forEach((r: Recipe) => r.tags.forEach((t: string) => s.add(t)));
     return ['all', ...Array.from(s)];
-  }, []);
+  }, [recipes]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return RECIPES.filter((r) => {
+    return recipes.filter((r: Recipe) => {
       const matchesQ = !s || r.title.toLowerCase().includes(s);
       const matchesTag = tag === 'all' || r.tags.includes(tag);
       return matchesQ && matchesTag;
     });
-  }, [q, tag]);
+  }, [q, tag, recipes]);
 
   return (
     <>
@@ -108,79 +67,128 @@ export default function Recipes() {
           <div className='table-actions' style={{ gap: 10 }}>
             <input
               className='input'
-              placeholder='Search recipes…'
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+              placeholder='Optional: Add requirements (e.g., vegetarian, quick, etc.)'
+              value={userPrompt}
+              onChange={(e) => setUserPrompt(e.target.value)}
+              style={{ minWidth: 300 }}
             />
-            <select
-              className='input'
-              style={{ paddingRight: 28 }}
-              value={tag}
-              onChange={(e) => setTag(e.target.value as any)}
+            <button
+              className='btn-primary'
+              onClick={handleGenerateRecipes}
+              disabled={loading}
             >
-              {allTags.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              {loading ? 'Generating...' : 'Generate Recipes'}
+            </button>
           </div>
         </div>
 
-        <div className='recipes-body'>
-          <div className='recipe-grid'>
-            {filtered.map((r) => (
-              <div key={r.id} className='recipe-card card'>
-                <div className='recipe-head'>
-                  <div className='recipe-title'>{r.title}</div>
-                  <div className='recipe-meta'>
-                    <span className='chip'>{r.minutes} min</span>
-                    <span className='chip'>{r.servings} servings</span>
-                  </div>
-                </div>
-
-                <div className='recipe-tags'>
-                  {r.tags.map((t) => (
-                    <span key={t} className='tag'>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
-                <div className='recipe-macros'>
-                  <div>
-                    <span className='macro-label'>kcal</span>
-                    <span className='macro-val'>{r.kcal}</span>
-                  </div>
-                  <div>
-                    <span className='macro-label'>P</span>
-                    <span className='macro-val'>{r.protein}g</span>
-                  </div>
-                  <div>
-                    <span className='macro-label'>C</span>
-                    <span className='macro-val'>{r.carbs}g</span>
-                  </div>
-                  <div>
-                    <span className='macro-label'>F</span>
-                    <span className='macro-val'>{r.fat}g</span>
-                  </div>
-                </div>
-
-                <div className='recipe-actions'>
-                  <button className='btn-primary' onClick={() => setActive(r)}>
-                    View
-                  </button>
-                  <button className='btn-soft'>Cook from Pantry</button>
-                  <button className='btn-outline'>Shopping List</button>
-                </div>
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className='card' style={{ padding: 20 }}>
-                No recipes match your filters.
-              </div>
-            )}
+        {error && (
+          <div
+            style={{ padding: '12px 20px', background: '#fee', color: '#c33' }}
+          >
+            {error}
           </div>
+        )}
+
+        {recipes.length > 0 && (
+          <div
+            className='table-header'
+            style={{ borderTop: '1px solid #e5e7eb' }}
+          >
+            <div className='table-actions' style={{ gap: 10, width: '100%' }}>
+              <input
+                className='input'
+                placeholder='Search recipes…'
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <select
+                className='input'
+                style={{ paddingRight: 28 }}
+                value={tag}
+                onChange={(e) => setTag(e.target.value as any)}
+              >
+                {allTags.map((t: string) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        <div className='recipes-body'>
+          {loading && (
+            <div className='card' style={{ padding: 40, textAlign: 'center' }}>
+              Generating recipes from your pantry inventory...
+            </div>
+          )}
+
+          {!loading && recipes.length === 0 && !error && (
+            <div className='card' style={{ padding: 40, textAlign: 'center' }}>
+              Click "Generate Recipes" to create recipe suggestions based on
+              your pantry inventory.
+            </div>
+          )}
+
+          {!loading && filtered.length > 0 && (
+            <div className='recipe-grid'>
+              {filtered.map((r: Recipe) => (
+                <div key={r.id} className='recipe-card card'>
+                  <div className='recipe-head'>
+                    <div className='recipe-title'>{r.title}</div>
+                    <div className='recipe-meta'>
+                      <span className='chip'>{r.minutes} min</span>
+                      <span className='chip'>{r.servings} servings</span>
+                    </div>
+                  </div>
+
+                  <div className='recipe-tags'>
+                    {r.tags.map((t: string) => (
+                      <span key={t} className='tag'>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className='recipe-macros'>
+                    <div>
+                      <span className='macro-label'>kcal</span>
+                      <span className='macro-val'>{r.kcal}</span>
+                    </div>
+                    <div>
+                      <span className='macro-label'>P</span>
+                      <span className='macro-val'>{r.protein}g</span>
+                    </div>
+                    <div>
+                      <span className='macro-label'>C</span>
+                      <span className='macro-val'>{r.carbs}g</span>
+                    </div>
+                    <div>
+                      <span className='macro-label'>F</span>
+                      <span className='macro-val'>{r.fat}g</span>
+                    </div>
+                  </div>
+
+                  <div className='recipe-actions'>
+                    <button
+                      className='btn-primary'
+                      onClick={() => setActive(r)}
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && recipes.length > 0 && filtered.length === 0 && (
+            <div className='card' style={{ padding: 20 }}>
+              No recipes match your filters.
+            </div>
+          )}
         </div>
       </section>
 
@@ -217,17 +225,19 @@ export default function Recipes() {
                 <div className='detail-col'>
                   <div className='detail-title'>Ingredients</div>
                   <ul>
-                    {active.ingredients.map((i, idx) => (
-                      <li key={idx}>
-                        {i.name} — {i.amount}
-                      </li>
-                    ))}
+                    {active.ingredients.map(
+                      (i: { name: string; amount: string }, idx: number) => (
+                        <li key={idx}>
+                          {i.name} — {i.amount}
+                        </li>
+                      )
+                    )}
                   </ul>
                 </div>
                 <div className='detail-col'>
                   <div className='detail-title'>Steps</div>
                   <ol>
-                    {active.steps.map((s, idx) => (
+                    {active.steps.map((s: string, idx: number) => (
                       <li key={idx}>{s}</li>
                     ))}
                   </ol>

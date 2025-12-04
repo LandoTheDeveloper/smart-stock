@@ -34,9 +34,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Mount all API routes
-console.log('Mounting /api routes...');
 app.use('/api', routes);
-console.log('/api routes mounted');
 
 app.get('/api/test', (req, res) => {
   res.json({ test: 'works' });
