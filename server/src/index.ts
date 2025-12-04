@@ -9,8 +9,14 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 import routes from './routes';
 
-console.log('Routes object:', routes);
-console.log('Routes stack:', routes.stack?.map((r: any) => ({ path: r.route?.path, regexp: r.regexp?.toString(), name: r.name })));
+console.log('Routes loaded:', routes.stack?.length, 'routes');
+routes.stack?.forEach((layer: any, i: number) => {
+  console.log(`Route ${i}:`, {
+    name: layer.name,
+    regexp: layer.regexp?.toString(),
+    path: layer.route?.path
+  });
+});
 
 const app: Application = express();
 
