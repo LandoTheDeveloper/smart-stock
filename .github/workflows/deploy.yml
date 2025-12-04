@@ -49,6 +49,7 @@ jobs:
           cd "$APP_DIR"
           [ -f server/.env ] && cp server/.env /tmp/server.env.bak || true
           [ -f client/.env ] && cp client/.env /tmp/client.env.bak || true
+          git clean -fd
           git reset --hard HEAD
           git pull --ff-only --quiet
           [ -f /tmp/server.env.bak ] && cp /tmp/server.env.bak server/.env || true
