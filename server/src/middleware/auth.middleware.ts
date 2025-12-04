@@ -7,14 +7,6 @@ interface JWTPayload {
   email: string;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: any;
-    }
-  }
-}
-
 export const authenticate = async (
   req: Request,
   res: Response,
