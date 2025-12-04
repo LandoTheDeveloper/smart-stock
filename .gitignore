@@ -6,3 +6,8 @@
 
 # ignore build folder in the server portion of the project
 /server/build
+/server/dist
+
+# ignore test files
+**/*.test.ts
+**/*.test.tsx
