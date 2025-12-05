@@ -18,12 +18,18 @@ export default function ShoppingList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newItem, setNewItem] = useState({
+  const [newItem, setNewItem] = useState<{
+    name: string;
+    quantity: number;
+    unit: string;
+    category: string;
+    priority: 'low' | 'normal' | 'high';
+  }>({
     name: '',
     quantity: 1,
     unit: '',
     category: '',
-    priority: 'normal' as const
+    priority: 'normal'
   });
 
   useEffect(() => {
