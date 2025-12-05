@@ -4,6 +4,7 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Pantry from './pages/Pantry';
 import Recipes from './pages/Recipes';
+import ShoppingList from './pages/ShoppingList';
 import ProtectedRoute from './routes/ProtectedRoute';
 import HomeRedirect from './routes/HomeRedirect';
 import { AuthProvider } from './context/AuthContext';
@@ -23,6 +24,7 @@ export default function App() {
               <Route path='/dashboard' element={<Dashboard />} />
               <Route path='/pantry' element={<Pantry />} />
               <Route path='/recipes' element={<Recipes />} />
+              <Route path='/shopping-list' element={<ShoppingList />} />
             </Route>
           </Route>
 

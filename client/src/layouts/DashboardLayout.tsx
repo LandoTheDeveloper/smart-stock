@@ -52,6 +52,14 @@ export default function DashboardLayout() {
           >
             <span className='nav-dot' /> Recipes
           </NavLink>
+          <NavLink
+            to='/shopping-list'
+            className={({ isActive }) =>
+              'nav-item' + (isActive ? ' active' : '')
+            }
+          >
+            <span className='nav-dot' /> Shopping List
+          </NavLink>
         </nav>
 
         <div className='sidebar-footer'>
