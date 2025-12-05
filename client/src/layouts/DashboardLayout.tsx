@@ -53,12 +53,28 @@ export default function DashboardLayout() {
             <span className='nav-dot' /> Recipes
           </NavLink>
           <NavLink
+            to='/my-recipes'
+            className={({ isActive }) =>
+              'nav-item' + (isActive ? ' active' : '')
+            }
+          >
+            <span className='nav-dot' /> My Recipes
+          </NavLink>
+          <NavLink
             to='/shopping-list'
             className={({ isActive }) =>
               'nav-item' + (isActive ? ' active' : '')
             }
           >
             <span className='nav-dot' /> Shopping List
+          </NavLink>
+          <NavLink
+            to='/meal-planner'
+            className={({ isActive }) =>
+              'nav-item' + (isActive ? ' active' : '')
+            }
+          >
+            <span className='nav-dot' /> Meal Planner
           </NavLink>
         </nav>
 

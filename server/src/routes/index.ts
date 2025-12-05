@@ -4,6 +4,8 @@ import aiRoutes from './ai.routes';
 import dashboardRoutes from './dashboard.routes';
 import pantryRoutes from './pantry.routes';
 import shoppingListRoutes from './shopping-list.routes';
+import mealPlanRoutes from './meal-plan.routes';
+import savedRecipeRoutes from './saved-recipe.routes';
 
 const router = express.Router();
 
@@ -12,6 +14,8 @@ router.use('/generate', aiRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/pantry', pantryRoutes);
 router.use('/shopping-list', shoppingListRoutes);
+router.use('/meal-plans', mealPlanRoutes);
+router.use('/recipes', savedRecipeRoutes);
 
 router.get('/health', (req, res) => {
   res.json({

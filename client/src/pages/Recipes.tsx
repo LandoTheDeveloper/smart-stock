@@ -23,6 +23,7 @@ export default function Recipes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [userPrompt, setUserPrompt] = useState('');
+  const [saving, setSaving] = useState<string | null>(null);
 
   const handleGenerateRecipes = async () => {
     setLoading(true);
@@ -41,6 +42,30 @@ export default function Recipes() {
       setError(err.response?.data?.message || 'Failed to generate recipes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveRecipe = async (recipe: Recipe) => {
+    setSaving(recipe.id);
+    try {
+      await api.post('/api/recipes', {
+        title: recipe.title,
+        minutes: recipe.minutes,
+        servings: recipe.servings,
+        tags: recipe.tags,
+        kcal: recipe.kcal,
+        protein: recipe.protein,
+        carbs: recipe.carbs,
+        fat: recipe.fat,
+        ingredients: recipe.ingredients,
+        steps: recipe.steps,
+        isCustom: false
+      });
+      alert('Recipe saved to your collection!');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to save recipe');
+    } finally {
+      setSaving(null);
     }
   };
 
@@ -178,6 +203,13 @@ export default function Recipes() {
                     >
                       View
                     </button>
+                    <button
+                      className='btn-soft'
+                      onClick={() => handleSaveRecipe(r)}
+                      disabled={saving === r.id}
+                    >
+                      {saving === r.id ? 'Saving...' : 'Save'}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -245,6 +277,15 @@ export default function Recipes() {
               </div>
             </div>
             <div className='modal-footer'>
+              <button
+                className='btn-soft'
+                onClick={() => {
+                  handleSaveRecipe(active);
+                }}
+                disabled={saving === active.id}
+              >
+                {saving === active.id ? 'Saving...' : 'Save Recipe'}
+              </button>
               <button className='btn-primary' onClick={() => setActive(null)}>
                 Done
               </button>
