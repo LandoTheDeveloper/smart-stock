@@ -29,6 +29,22 @@ type MealPlan = {
   notes?: string;
 };
 
+type SavedRecipe = {
+  _id: string;
+  title: string;
+  minutes: number;
+  servings: number;
+  tags: string[];
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  ingredients: Ingredient[];
+  steps: string[];
+  isFavorite: boolean;
+  isCustom: boolean;
+};
+
 type IngredientComparison = {
   ingredient: string;
   amountsNeeded: string[];
@@ -55,6 +71,11 @@ export default function MealPlanner() {
   const [generatingRecipes, setGeneratingRecipes] = useState(false);
   const [recipePrompt, setRecipePrompt] = useState('');
 
+  // Saved recipes (for favorites)
+  const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
+  const [savedRecipesLoading, setSavedRecipesLoading] = useState(false);
+  const [addMealTab, setAddMealTab] = useState<'favorites' | 'generate'>('favorites');
+
   // Ingredient comparison
   const [ingredients, setIngredients] = useState<IngredientComparison[]>([]);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
@@ -78,6 +99,24 @@ export default function MealPlanner() {
   useEffect(() => {
     fetchMealPlans();
   }, [weekStart]);
+
+  useEffect(() => {
+    fetchSavedRecipes();
+  }, []);
+
+  const fetchSavedRecipes = async () => {
+    try {
+      setSavedRecipesLoading(true);
+      const response = await api.get<{ success: boolean; data: SavedRecipe[] }>('/api/recipes');
+      if (response.data.success) {
+        setSavedRecipes(response.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch saved recipes:', err);
+    } finally {
+      setSavedRecipesLoading(false);
+    }
+  };
 
   const fetchMealPlans = async () => {
     try {
@@ -144,6 +183,27 @@ export default function MealPlanner() {
       alert(err.response?.data?.message || 'Failed to add meal');
     }
   };
+
+  const handleAddSavedRecipe = (savedRecipe: SavedRecipe) => {
+    const recipe: Recipe = {
+      id: savedRecipe._id,
+      title: savedRecipe.title,
+      minutes: savedRecipe.minutes,
+      servings: savedRecipe.servings,
+      tags: savedRecipe.tags,
+      kcal: savedRecipe.kcal,
+      protein: savedRecipe.protein,
+      carbs: savedRecipe.carbs,
+      fat: savedRecipe.fat,
+      ingredients: savedRecipe.ingredients,
+      steps: savedRecipe.steps
+    };
+    handleAddMeal(recipe);
+  };
+
+  const favoriteRecipes = useMemo(() => {
+    return savedRecipes.filter(r => r.isFavorite);
+  }, [savedRecipes]);
 
   const handleToggleCompleted = async (id: string) => {
     try {
@@ -476,61 +536,165 @@ export default function MealPlanner() {
                 Close
               </button>
             </div>
-            <div className="modal-body">
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                  Generate recipes from your pantry
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    className="input"
-                    placeholder="Optional: dietary preferences, cuisine type..."
-                    value={recipePrompt}
-                    onChange={(e) => setRecipePrompt(e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    className="btn-primary"
-                    onClick={handleGenerateRecipes}
-                    disabled={generatingRecipes}
-                  >
-                    {generatingRecipes ? 'Generating...' : 'Generate'}
-                  </button>
-                </div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              {/* Tabs */}
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setAddMealTab('favorites')}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    border: 'none',
+                    background: addMealTab === 'favorites' ? 'var(--bg-elev)' : 'transparent',
+                    borderBottom: addMealTab === 'favorites' ? '2px solid var(--primary)' : '2px solid transparent',
+                    color: addMealTab === 'favorites' ? 'var(--primary)' : 'var(--muted)',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  My Recipes ({savedRecipes.length})
+                </button>
+                <button
+                  onClick={() => setAddMealTab('generate')}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    border: 'none',
+                    background: addMealTab === 'generate' ? 'var(--bg-elev)' : 'transparent',
+                    borderBottom: addMealTab === 'generate' ? '2px solid var(--primary)' : '2px solid transparent',
+                    color: addMealTab === 'generate' ? 'var(--primary)' : 'var(--muted)',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Generate New
+                </button>
               </div>
 
-              {generatedRecipes.length > 0 && (
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                    Select a recipe to add:
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: 300, overflowY: 'auto' }}>
-                    {generatedRecipes.map((recipe, idx) => (
-                      <div
-                        key={idx}
-                        className="recipe-card-small"
-                        onClick={() => handleAddMeal(recipe)}
-                      >
-                        <div className="title">{recipe.title}</div>
-                        <div className="meta">
-                          {recipe.minutes} min • {recipe.servings} servings • {recipe.kcal} kcal
+              <div style={{ padding: '1rem' }}>
+                {addMealTab === 'favorites' && (
+                  <>
+                    {savedRecipesLoading ? (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>
+                        Loading recipes...
+                      </div>
+                    ) : savedRecipes.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>
+                        No saved recipes yet. Go to Recipes page to save some, or generate new ones below!
+                      </div>
+                    ) : (
+                      <>
+                        {favoriteRecipes.length > 0 && (
+                          <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>
+                              Favorites
+                            </label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: 200, overflowY: 'auto' }}>
+                              {favoriteRecipes.map((recipe) => (
+                                <div
+                                  key={recipe._id}
+                                  className="recipe-card-small"
+                                  onClick={() => handleAddSavedRecipe(recipe)}
+                                >
+                                  <div className="title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    {recipe.title}
+                                    <span style={{ color: '#ef4444', fontSize: '0.9rem' }}>★</span>
+                                  </div>
+                                  <div className="meta">
+                                    {recipe.minutes} min • {recipe.servings} servings • {recipe.kcal} kcal
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>
+                            {favoriteRecipes.length > 0 ? 'All Saved Recipes' : 'Select a recipe to add:'}
+                          </label>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: 250, overflowY: 'auto' }}>
+                            {savedRecipes.map((recipe) => (
+                              <div
+                                key={recipe._id}
+                                className="recipe-card-small"
+                                onClick={() => handleAddSavedRecipe(recipe)}
+                              >
+                                <div className="title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {recipe.title}
+                                  {recipe.isFavorite && <span style={{ color: '#ef4444', fontSize: '0.9rem' }}>★</span>}
+                                  {recipe.isCustom && <span className="tag" style={{ fontSize: '0.65rem' }}>Custom</span>}
+                                </div>
+                                <div className="meta">
+                                  {recipe.minutes} min • {recipe.servings} servings • {recipe.kcal} kcal
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                          {recipe.tags.map(tag => (
-                            <span key={tag} className="tag" style={{ fontSize: '0.7rem' }}>{tag}</span>
+                      </>
+                    )}
+                  </>
+                )}
+
+                {addMealTab === 'generate' && (
+                  <>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        Generate recipes from your pantry
+                      </label>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                          className="input"
+                          placeholder="Optional: dietary preferences, cuisine type..."
+                          value={recipePrompt}
+                          onChange={(e) => setRecipePrompt(e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          className="btn-primary"
+                          onClick={handleGenerateRecipes}
+                          disabled={generatingRecipes}
+                        >
+                          {generatingRecipes ? 'Generating...' : 'Generate'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {generatedRecipes.length > 0 && (
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                          Select a recipe to add:
+                        </label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: 300, overflowY: 'auto' }}>
+                          {generatedRecipes.map((recipe, idx) => (
+                            <div
+                              key={idx}
+                              className="recipe-card-small"
+                              onClick={() => handleAddMeal(recipe)}
+                            >
+                              <div className="title">{recipe.title}</div>
+                              <div className="meta">
+                                {recipe.minutes} min • {recipe.servings} servings • {recipe.kcal} kcal
+                              </div>
+                              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                {recipe.tags.map(tag => (
+                                  <span key={tag} className="tag" style={{ fontSize: '0.7rem' }}>{tag}</span>
+                                ))}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {generatingRecipes && (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#6b726d' }}>
-                  Generating recipes based on your pantry...
-                </div>
-              )}
+                    {generatingRecipes && (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#6b726d' }}>
+                        Generating recipes based on your pantry...
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

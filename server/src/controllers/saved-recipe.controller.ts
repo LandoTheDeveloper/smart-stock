@@ -89,6 +89,19 @@ export const saveRecipe = async (req: Request, res: Response) => {
       });
     }
 
+    // Check for duplicate recipe by title (case-insensitive)
+    const existingRecipe = await SavedRecipe.findOne({
+      userId,
+      title: { $regex: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+    });
+
+    if (existingRecipe) {
+      return res.status(409).json({
+        success: false,
+        message: 'You already have a recipe with this title saved'
+      });
+    }
+
     const recipe = new SavedRecipe({
       userId,
       title,

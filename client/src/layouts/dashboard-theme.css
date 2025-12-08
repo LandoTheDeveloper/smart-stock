@@ -491,16 +491,24 @@ body {
 }
 .recipe-macros {
   display: grid;
-  gap: 10px;
+  gap: 6px 10px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
 }
+.recipe-macros > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+}
 .macro-label {
   color: var(--muted);
-  margin-right: 6px;
+  font-size: 0.7rem;
 }
 .macro-val {
   font-weight: 800;
+  font-size: 0.85rem;
 }
 .recipe-actions {
   display: flex;

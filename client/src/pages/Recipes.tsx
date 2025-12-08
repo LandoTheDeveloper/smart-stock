@@ -37,6 +37,13 @@ type SavedRecipe = {
   notes?: string;
 };
 
+type RecipeHistoryItem = {
+  _id: string;
+  prompt?: string;
+  recipes: GeneratedRecipe[];
+  createdAt: string;
+};
+
 const TIME_FILTERS = [
   { label: 'Any Time', value: 0 },
   { label: '15 min', value: 15 },
@@ -48,7 +55,7 @@ const TIME_FILTERS = [
 const COMMON_TAGS = ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'vegetarian', 'vegan', 'quick', 'healthy', 'low-carb', 'high-protein'];
 
 export default function Recipes() {
-  const [tab, setTab] = useState<'generate' | 'saved'>('saved');
+  const [tab, setTab] = useState<'generate' | 'saved' | 'history'>('saved');
   const [q, setQ] = useState('');
   const [tag, setTag] = useState<string | 'all'>('all');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'custom'>('all');
@@ -56,9 +63,11 @@ export default function Recipes() {
 
   const [generatedRecipes, setGeneratedRecipes] = useState<GeneratedRecipe[]>([]);
   const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
+  const [history, setHistory] = useState<RecipeHistoryItem[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [savedLoading, setSavedLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState('');
   const [userPrompt, setUserPrompt] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
@@ -86,7 +95,22 @@ export default function Recipes() {
 
   useEffect(() => {
     fetchSavedRecipes();
+    fetchHistory();
   }, []);
+
+  const fetchHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      const response = await api.get<{ success: boolean; data: RecipeHistoryItem[] }>('/api/recipe-history');
+      if (response.data.success) {
+        setHistory(response.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const fetchSavedRecipes = async () => {
     try {
@@ -114,11 +138,50 @@ export default function Recipes() {
 
       if (response.data.success) {
         setGeneratedRecipes(response.data.recipes);
+        // Refresh history after generating new recipes
+        fetchHistory();
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to generate recipes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteHistoryItem = async (id: string) => {
+    if (!confirm('Delete this history item?')) return;
+    try {
+      await api.delete(`/api/recipe-history/${id}`);
+      setHistory(prev => prev.filter(h => h._id !== id));
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete history item');
+    }
+  };
+
+  const handleSaveFromHistory = async (recipe: GeneratedRecipe) => {
+    setSaving(recipe.id);
+    try {
+      const response = await api.post<{ success: boolean; data: SavedRecipe }>('/api/recipes', {
+        title: recipe.title,
+        minutes: recipe.minutes,
+        servings: recipe.servings,
+        tags: recipe.tags,
+        kcal: recipe.kcal,
+        protein: recipe.protein,
+        carbs: recipe.carbs,
+        fat: recipe.fat,
+        ingredients: recipe.ingredients,
+        steps: recipe.steps,
+        isCustom: false
+      });
+      if (response.data.success) {
+        setSavedRecipes(prev => [response.data.data, ...prev]);
+        alert('Recipe saved to your collection!');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to save recipe');
+    } finally {
+      setSaving(null);
     }
   };
 
@@ -339,58 +402,66 @@ export default function Recipes() {
             >
               Generate New
             </button>
+            <button
+              className={`recipe-tab ${tab === 'history' ? 'active' : ''}`}
+              onClick={() => setTab('history')}
+            >
+              History ({history.length})
+            </button>
           </div>
 
-          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {tab === 'generate' ? (
-              <>
-                <input
-                  className='input'
-                  placeholder='Optional: Add requirements (e.g., vegetarian, quick)'
-                  value={userPrompt}
-                  onChange={(e) => setUserPrompt(e.target.value)}
-                  style={{ flex: 1, minWidth: 200 }}
-                />
-                <button
-                  className='btn-primary'
-                  onClick={handleGenerateRecipes}
-                  disabled={loading}
-                >
-                  {loading ? 'Generating...' : 'Generate'}
-                </button>
-              </>
-            ) : (
-              <>
-                <input
-                  className='input'
-                  placeholder='Search recipes…'
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  style={{ minWidth: 150 }}
-                />
-                <select
-                  className='input'
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as any)}
-                  style={{ minWidth: 120 }}
-                >
-                  <option value='all'>All</option>
-                  <option value='favorites'>Favorites</option>
-                  <option value='custom'>Custom</option>
-                </select>
-                <button
-                  className='btn-soft btn-sm'
-                  onClick={() => setShowFilters(!showFilters)}
-                  style={{ background: showFilters ? 'var(--primary-20)' : undefined }}
-                >
-                  Filters {(maxTime > 0 || maxCalories > 0 || excludeIngredients || tag !== 'all') ? '•' : ''}
-                </button>
-                <button className='btn-primary' onClick={() => setShowAddModal(true)}>
-                  Add Recipe
-                </button>
-              </>
-            )}
-          </div>
+          {tab !== 'history' && (
+            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {tab === 'generate' ? (
+                <>
+                  <input
+                    className='input'
+                    placeholder='Optional: Add requirements (e.g., vegetarian, quick)'
+                    value={userPrompt}
+                    onChange={(e) => setUserPrompt(e.target.value)}
+                    style={{ flex: 1, minWidth: 200 }}
+                  />
+                  <button
+                    className='btn-primary'
+                    onClick={handleGenerateRecipes}
+                    disabled={loading}
+                  >
+                    {loading ? 'Generating...' : 'Generate'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    className='input'
+                    placeholder='Search recipes…'
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    style={{ minWidth: 150 }}
+                  />
+                  <select
+                    className='input'
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value as any)}
+                    style={{ minWidth: 120 }}
+                  >
+                    <option value='all'>All</option>
+                    <option value='favorites'>Favorites</option>
+                    <option value='custom'>Custom</option>
+                  </select>
+                  <button
+                    className='btn-soft btn-sm'
+                    onClick={() => setShowFilters(!showFilters)}
+                    style={{ background: showFilters ? 'var(--primary-20)' : undefined }}
+                  >
+                    Filters {(maxTime > 0 || maxCalories > 0 || excludeIngredients || tag !== 'all') ? '•' : ''}
+                  </button>
+                  <button className='btn-primary' onClick={() => setShowAddModal(true)}>
+                    Add Recipe
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {showFilters && tab === 'saved' && (
             <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
@@ -630,15 +701,103 @@ export default function Recipes() {
                       <div className='recipe-actions'>
                         <button className='btn-primary' onClick={() => setActive(r)}>View</button>
                         <button className='btn-soft' onClick={() => handleToggleFavorite(r._id)}>
-                          {r.isFavorite ? 'Unfav' : 'Fav'}
+                          {r.isFavorite ? 'Unfavorite' : 'Favorite'}
                         </button>
                         <button
                           className='btn-outline'
                           style={{ color: '#dc2626', borderColor: '#fecaca' }}
                           onClick={(e) => handleDeleteRecipe(r._id, e)}
                         >
-                          Del
+                          Delete
                         </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === 'history' && (
+            <>
+              {historyLoading && (
+                <div className='card' style={{ padding: 40, textAlign: 'center' }}>
+                  Loading history...
+                </div>
+              )}
+
+              {!historyLoading && history.length === 0 && (
+                <div className='card' style={{ padding: 40, textAlign: 'center' }}>
+                  No recipe generation history yet. Generate some recipes to see them here!
+                </div>
+              )}
+
+              {!historyLoading && history.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem' }}>
+                  {history.map((item) => (
+                    <div key={item._id} className='card' style={{ padding: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                            {new Date(item.createdAt).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                          {item.prompt && (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
+                              Prompt: "{item.prompt}"
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          className='btn-outline'
+                          style={{ color: '#dc2626', borderColor: '#fecaca' }}
+                          onClick={() => handleDeleteHistoryItem(item._id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {item.recipes.map((recipe, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.75rem',
+                              background: 'var(--bg)',
+                              borderRadius: '8px',
+                              border: '1px solid var(--border)'
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 500, color: 'var(--text)' }}>{recipe.title}</div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                                {recipe.minutes} min • {recipe.servings} srv • {recipe.kcal} kcal
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                className='btn-soft btn-sm'
+                                onClick={() => setActive(recipe)}
+                              >
+                                View
+                              </button>
+                              <button
+                                className='btn-primary btn-sm'
+                                onClick={() => handleSaveFromHistory(recipe)}
+                                disabled={saving === recipe.id}
+                              >
+                                {saving === recipe.id ? 'Saving...' : 'Save'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}

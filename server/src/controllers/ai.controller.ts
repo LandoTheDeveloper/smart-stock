@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import PantryItem from '../models/PantryItem';
 import User from '../models/User';
+import RecipeHistory from '../models/RecipeHistory';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -168,6 +169,13 @@ Return the response as a valid JSON array with this exact structure:
         message: 'Failed to parse recipe data from AI response',
       });
     }
+
+    // Save to history
+    await RecipeHistory.create({
+      userId,
+      prompt: userPrompt || undefined,
+      recipes
+    });
 
     res.json({
       success: true,
