@@ -353,9 +353,10 @@ body {
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: #eef5ef;
+  background: var(--primary-10);
   border: 1px solid var(--border);
   font-weight: 700;
+  color: var(--text);
 }
 
 .actions {
