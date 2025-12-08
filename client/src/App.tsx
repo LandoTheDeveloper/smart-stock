@@ -6,33 +6,38 @@ import Pantry from './pages/Pantry';
 import Recipes from './pages/Recipes';
 import ShoppingList from './pages/ShoppingList';
 import MealPlanner from './pages/MealPlanner';
+import Settings from './pages/Settings';
 import ProtectedRoute from './routes/ProtectedRoute';
 import HomeRedirect from './routes/HomeRedirect';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path='/' element={<HomeRedirect />} />
-          <Route path='/login' element={<Login />} />
-          <Route path='/signup' element={<Signup />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path='/' element={<HomeRedirect />} />
+            <Route path='/login' element={<Login />} />
+            <Route path='/signup' element={<Signup />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route element={<DashboardLayout />}>
-              <Route path='/dashboard' element={<Dashboard />} />
-              <Route path='/pantry' element={<Pantry />} />
-              <Route path='/recipes' element={<Recipes />} />
-              <Route path='/shopping-list' element={<ShoppingList />} />
-              <Route path='/meal-planner' element={<MealPlanner />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<DashboardLayout />}>
+                <Route path='/dashboard' element={<Dashboard />} />
+                <Route path='/pantry' element={<Pantry />} />
+                <Route path='/recipes' element={<Recipes />} />
+                <Route path='/shopping-list' element={<ShoppingList />} />
+                <Route path='/meal-planner' element={<MealPlanner />} />
+                <Route path='/settings' element={<Settings />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path='*' element={<HomeRedirect />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            <Route path='*' element={<HomeRedirect />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

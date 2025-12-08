@@ -8,7 +8,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/pantry': 'Pantry',
   '/recipes': 'Recipes',
   '/shopping-list': 'Shopping List',
-  '/meal-planner': 'Meal Planner'
+  '/meal-planner': 'Meal Planner',
+  '/settings': 'Settings'
 };
 
 export default function DashboardLayout() {
@@ -78,6 +79,14 @@ export default function DashboardLayout() {
             }
           >
             <span className='nav-dot' /> Meal Planner
+          </NavLink>
+          <NavLink
+            to='/settings'
+            className={({ isActive }) =>
+              'nav-item' + (isActive ? ' active' : '')
+            }
+          >
+            <span className='nav-dot' /> Settings
           </NavLink>
         </nav>
 

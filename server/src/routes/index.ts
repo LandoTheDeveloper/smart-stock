@@ -6,6 +6,7 @@ import pantryRoutes from './pantry.routes';
 import shoppingListRoutes from './shopping-list.routes';
 import mealPlanRoutes from './meal-plan.routes';
 import savedRecipeRoutes from './saved-recipe.routes';
+import userRoutes from './user.routes';
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.use('/pantry', pantryRoutes);
 router.use('/shopping-list', shoppingListRoutes);
 router.use('/meal-plans', mealPlanRoutes);
 router.use('/recipes', savedRecipeRoutes);
+router.use('/user', userRoutes);
 
 router.get('/health', (req, res) => {
   res.json({

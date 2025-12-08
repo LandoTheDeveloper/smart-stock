@@ -1,6 +1,16 @@
 import mongoose, { Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export interface IUserPreferences {
+  dietaryPreferences: string[];
+  allergies: string[];
+  customAllergies: string;
+  avoidIngredients: string;
+  calorieTarget: number;
+  proteinTarget: number;
+  cuisinePreferences: string;
+}
+
 export interface IUser extends Document {
   email: string;
   password: string;
@@ -8,6 +18,7 @@ export interface IUser extends Document {
   role: 'user' | 'admin';
   isActive: boolean;
   lastLogin?: Date;
+  preferences?: IUserPreferences;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -49,6 +60,15 @@ const userSchema = new mongoose.Schema<IUser>({
   },
   lastLogin: {
     type: Date
+  },
+  preferences: {
+    dietaryPreferences: { type: [String], default: [] },
+    allergies: { type: [String], default: [] },
+    customAllergies: { type: String, default: '' },
+    avoidIngredients: { type: String, default: '' },
+    calorieTarget: { type: Number, default: 0 },
+    proteinTarget: { type: Number, default: 0 },
+    cuisinePreferences: { type: String, default: '' }
   }
 }, {
   timestamps: true

@@ -37,6 +37,16 @@ type SavedRecipe = {
   notes?: string;
 };
 
+const TIME_FILTERS = [
+  { label: 'Any Time', value: 0 },
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '45 min', value: 45 },
+  { label: '60 min', value: 60 }
+];
+
+const COMMON_TAGS = ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'vegetarian', 'vegan', 'quick', 'healthy', 'low-carb', 'high-protein'];
+
 export default function Recipes() {
   const [tab, setTab] = useState<'generate' | 'saved'>('saved');
   const [q, setQ] = useState('');
@@ -52,6 +62,13 @@ export default function Recipes() {
   const [error, setError] = useState('');
   const [userPrompt, setUserPrompt] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
+
+  // Advanced filters
+  const [maxTime, setMaxTime] = useState(0);
+  const [maxCalories, setMaxCalories] = useState(0);
+  const [excludeIngredients, setExcludeIngredients] = useState('');
+  const [useExpiringFirst, setUseExpiringFirst] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRecipe, setNewRecipe] = useState({
@@ -220,17 +237,27 @@ export default function Recipes() {
     const recipes = tab === 'generate' ? generatedRecipes : savedRecipes;
     const s = new Set<string>();
     recipes.forEach((r: any) => r.tags?.forEach((t: string) => s.add(t)));
-    return ['all', ...Array.from(s)];
+    // Add common tags that aren't already present
+    COMMON_TAGS.forEach(t => s.add(t));
+    return ['all', ...Array.from(s).sort()];
   }, [tab, generatedRecipes, savedRecipes]);
+
+  const excludedIngredientsList = useMemo(() => {
+    return excludeIngredients.split(',').map(i => i.trim().toLowerCase()).filter(Boolean);
+  }, [excludeIngredients]);
 
   const filteredGenerated = useMemo(() => {
     const s = q.trim().toLowerCase();
     return generatedRecipes.filter((r) => {
       const matchesQ = !s || r.title.toLowerCase().includes(s);
       const matchesTag = tag === 'all' || r.tags.includes(tag);
-      return matchesQ && matchesTag;
+      const matchesTime = maxTime === 0 || r.minutes <= maxTime;
+      const matchesCalories = maxCalories === 0 || r.kcal <= maxCalories;
+      const matchesExclusions = excludedIngredientsList.length === 0 ||
+        !r.ingredients.some(ing => excludedIngredientsList.some(ex => ing.name.toLowerCase().includes(ex)));
+      return matchesQ && matchesTag && matchesTime && matchesCalories && matchesExclusions;
     });
-  }, [q, tag, generatedRecipes]);
+  }, [q, tag, generatedRecipes, maxTime, maxCalories, excludedIngredientsList]);
 
   const filteredSaved = useMemo(() => {
     let result = savedRecipes;
@@ -250,8 +277,22 @@ export default function Recipes() {
       result = result.filter(r => r.tags?.includes(tag));
     }
 
+    if (maxTime > 0) {
+      result = result.filter(r => r.minutes <= maxTime);
+    }
+
+    if (maxCalories > 0) {
+      result = result.filter(r => r.kcal <= maxCalories);
+    }
+
+    if (excludedIngredientsList.length > 0) {
+      result = result.filter(r =>
+        !r.ingredients.some(ing => excludedIngredientsList.some(ex => ing.name.toLowerCase().includes(ex)))
+      );
+    }
+
     return result;
-  }, [savedRecipes, filter, q, tag]);
+  }, [savedRecipes, filter, q, tag, maxTime, maxCalories, excludedIngredientsList]);
 
   const isSavedRecipe = (recipe: any): recipe is SavedRecipe => '_id' in recipe;
 
@@ -337,18 +378,13 @@ export default function Recipes() {
                   <option value='favorites'>Favorites</option>
                   <option value='custom'>Custom</option>
                 </select>
-                {allTags.length > 1 && (
-                  <select
-                    className='input'
-                    value={tag}
-                    onChange={(e) => setTag(e.target.value)}
-                    style={{ minWidth: 100 }}
-                  >
-                    {allTags.map((t) => (
-                      <option key={t} value={t}>{t === 'all' ? 'All Tags' : t}</option>
-                    ))}
-                  </select>
-                )}
+                <button
+                  className='btn-soft btn-sm'
+                  onClick={() => setShowFilters(!showFilters)}
+                  style={{ background: showFilters ? 'var(--primary-20)' : undefined }}
+                >
+                  Filters {(maxTime > 0 || maxCalories > 0 || excludeIngredients || tag !== 'all') ? '•' : ''}
+                </button>
                 <button className='btn-primary' onClick={() => setShowAddModal(true)}>
                   Add Recipe
                 </button>
@@ -356,8 +392,71 @@ export default function Recipes() {
             )}
           </div>
 
+          {showFilters && tab === 'saved' && (
+            <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <select
+                className='input'
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+                style={{ minWidth: 120 }}
+              >
+                {allTags.map((t) => (
+                  <option key={t} value={t}>{t === 'all' ? 'All Tags' : t}</option>
+                ))}
+              </select>
+              <select
+                className='input'
+                value={maxTime}
+                onChange={(e) => setMaxTime(Number(e.target.value))}
+                style={{ minWidth: 100 }}
+              >
+                {TIME_FILTERS.map((t) => (
+                  <option key={t.value} value={t.value}>{t.value === 0 ? 'Any Time' : `≤ ${t.label}`}</option>
+                ))}
+              </select>
+              <input
+                className='input'
+                type='number'
+                placeholder='Max kcal'
+                value={maxCalories || ''}
+                onChange={(e) => setMaxCalories(Number(e.target.value) || 0)}
+                style={{ width: 100 }}
+                min={0}
+              />
+              <input
+                className='input'
+                placeholder='Exclude ingredients (comma sep)'
+                value={excludeIngredients}
+                onChange={(e) => setExcludeIngredients(e.target.value)}
+                style={{ minWidth: 180 }}
+              />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
+                <input
+                  type='checkbox'
+                  checked={useExpiringFirst}
+                  onChange={(e) => setUseExpiringFirst(e.target.checked)}
+                />
+                Expiring items first
+              </label>
+              {(maxTime > 0 || maxCalories > 0 || excludeIngredients || tag !== 'all') && (
+                <button
+                  className='btn-outline btn-sm'
+                  onClick={() => {
+                    setMaxTime(0);
+                    setMaxCalories(0);
+                    setExcludeIngredients('');
+                    setTag('all');
+                    setUseExpiringFirst(false);
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+
           {tab === 'generate' && generatedRecipes.length > 0 && (
-            <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
+            <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <input
                 className='input'
                 placeholder='Search generated…'
@@ -365,17 +464,35 @@ export default function Recipes() {
                 onChange={(e) => setQ(e.target.value)}
                 style={{ minWidth: 150 }}
               />
-              {allTags.length > 1 && (
-                <select
-                  className='input'
-                  value={tag}
-                  onChange={(e) => setTag(e.target.value)}
-                >
-                  {allTags.map((t) => (
-                    <option key={t} value={t}>{t === 'all' ? 'All Tags' : t}</option>
-                  ))}
-                </select>
-              )}
+              <select
+                className='input'
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+                style={{ minWidth: 100 }}
+              >
+                {allTags.map((t) => (
+                  <option key={t} value={t}>{t === 'all' ? 'All Tags' : t}</option>
+                ))}
+              </select>
+              <select
+                className='input'
+                value={maxTime}
+                onChange={(e) => setMaxTime(Number(e.target.value))}
+                style={{ minWidth: 100 }}
+              >
+                {TIME_FILTERS.map((t) => (
+                  <option key={t.value} value={t.value}>{t.value === 0 ? 'Any Time' : `≤ ${t.label}`}</option>
+                ))}
+              </select>
+              <input
+                className='input'
+                type='number'
+                placeholder='Max kcal'
+                value={maxCalories || ''}
+                onChange={(e) => setMaxCalories(Number(e.target.value) || 0)}
+                style={{ width: 90 }}
+                min={0}
+              />
             </div>
           )}
         </div>
@@ -415,7 +532,14 @@ export default function Recipes() {
 
                       <div className='recipe-tags'>
                         {r.tags.map((t) => (
-                          <span key={t} className='tag'>{t}</span>
+                          <span
+                            key={t}
+                            className={`tag ${tag === t ? 'tag-active' : ''}`}
+                            onClick={() => setTag(tag === t ? 'all' : t)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {t}
+                          </span>
                         ))}
                       </div>
 
@@ -485,7 +609,14 @@ export default function Recipes() {
 
                       <div className='recipe-tags'>
                         {r.tags?.map((t) => (
-                          <span key={t} className='tag'>{t}</span>
+                          <span
+                            key={t}
+                            className={`tag ${tag === t ? 'tag-active' : ''}`}
+                            onClick={() => setTag(tag === t ? 'all' : t)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {t}
+                          </span>
                         ))}
                       </div>
 

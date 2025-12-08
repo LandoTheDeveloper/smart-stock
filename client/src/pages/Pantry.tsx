@@ -51,6 +51,7 @@ export default function Pantry() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newItem, setNewItem] = useState({
     name: '',
     quantity: 1,
@@ -159,8 +160,8 @@ export default function Pantry() {
     }));
   };
 
-  const removeItem = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
+  const removeItem = async (id: string, skipConfirm = false) => {
+    if (!skipConfirm && !confirm('Are you sure you want to delete this item?')) return;
 
     try {
       const response = await api.delete(`/api/pantry/${id}`);
@@ -171,6 +172,109 @@ export default function Pantry() {
     } catch (err: any) {
       console.error('Failed to delete item:', err);
       alert(err.response?.data?.message || 'Failed to delete item');
+    }
+  };
+
+  const decrementQuantity = async (item: PantryItem) => {
+    const newQty = item.quantity - 1;
+    if (newQty <= 0) {
+      await removeItem(item._id, true);
+      return;
+    }
+
+    try {
+      const response = await api.put(`/api/pantry/${item._id}`, {
+        quantity: newQty
+      });
+
+      if (response.data.success) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i._id === item._id ? { ...i, quantity: newQty } : i
+          )
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to decrement quantity:', err);
+      alert(err.response?.data?.message || 'Failed to update item');
+    }
+  };
+
+  const addToShoppingList = async (item: PantryItem) => {
+    try {
+      await api.post('/api/shopping-list', {
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit || 'count',
+        category: item.category,
+        priority: 'normal',
+        pantryItemId: item._id
+      });
+      alert(`${item.name} added to shopping list!`);
+    } catch (err: any) {
+      console.error('Failed to add to shopping list:', err);
+      alert(err.response?.data?.message || 'Failed to add to shopping list');
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((i) => i._id)));
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} selected items?`)) return;
+
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map((id) => api.delete(`/api/pantry/${id}`))
+      );
+      setItems((prev) => prev.filter((i) => !selectedIds.has(i._id)));
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      console.error('Failed to delete items:', err);
+      alert('Failed to delete some items');
+    }
+  };
+
+  const bulkAddToShoppingList = async () => {
+    if (selectedIds.size === 0) return;
+
+    const selectedItems = items.filter((i) => selectedIds.has(i._id));
+    try {
+      await Promise.all(
+        selectedItems.map((item) =>
+          api.post('/api/shopping-list', {
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit || 'count',
+            category: item.category,
+            priority: 'normal',
+            pantryItemId: item._id
+          })
+        )
+      );
+      alert(`${selectedIds.size} items added to shopping list!`);
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      console.error('Failed to add items to shopping list:', err);
+      alert('Failed to add some items to shopping list');
     }
   };
 
@@ -242,7 +346,7 @@ export default function Pantry() {
       <section className='card table-card'>
         <div className='table-header'>
           <div className='table-title'>Pantry</div>
-          <div className='table-actions' style={{ alignItems: 'center', gap: '0.5rem' }}>
+          <div className='table-actions' style={{ alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <input
               className='input'
               placeholder='Search items…'
@@ -270,6 +374,20 @@ export default function Pantry() {
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
+            {selectedIds.size > 0 && (
+              <>
+                <button className='btn-soft btn-sm' onClick={bulkAddToShoppingList}>
+                  Restock ({selectedIds.size})
+                </button>
+                <button
+                  className='btn-outline btn-sm'
+                  style={{ color: '#dc2626', borderColor: '#fecaca' }}
+                  onClick={bulkDelete}
+                >
+                  Delete ({selectedIds.size})
+                </button>
+              </>
+            )}
             <button className='btn-soft' onClick={() => setShowAddModal(true)}>
               Add Item
             </button>
@@ -279,8 +397,16 @@ export default function Pantry() {
         <div className='table'>
           <div
             className='row head'
-            style={{ gridTemplateColumns: '2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
+            style={{ gridTemplateColumns: '0.3fr 2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
           >
+            <div>
+              <input
+                type='checkbox'
+                checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                onChange={selectAll}
+                title='Select all'
+              />
+            </div>
             <div>Item</div>
             <div>Qty</div>
             <div>Location</div>
@@ -296,8 +422,15 @@ export default function Pantry() {
               <div
                 className='row'
                 key={it._id}
-                style={{ gridTemplateColumns: '2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
+                style={{ gridTemplateColumns: '0.3fr 2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
               >
+                <div>
+                  <input
+                    type='checkbox'
+                    checked={selectedIds.has(it._id)}
+                    onChange={() => toggleSelect(it._id)}
+                  />
+                </div>
                 <div>
                   <div className='cell-title'>{it.name}</div>
                   <div className='cell-sub'>
@@ -356,39 +489,56 @@ export default function Pantry() {
                   )}
                 </div>
                 <div className='actions'>
-                  {it.macros && (
-                    <button
-                      className='btn-soft'
-                      onClick={() => setMacroItem(it)}
-                    >
-                      Macros
-                    </button>
-                  )}
                   {!isEditing ? (
                     <>
+                      {(it.unit === 'count' || !it.unit) && (
+                        <button
+                          className='btn-soft btn-sm'
+                          onClick={() => decrementQuantity(it)}
+                          title='Use one'
+                        >
+                          -1
+                        </button>
+                      )}
                       <button
-                        className='btn-primary'
+                        className='btn-soft btn-sm'
+                        onClick={() => removeItem(it._id, true)}
+                        title='Mark as finished'
+                      >
+                        Done
+                      </button>
+                      <button
+                        className='btn-soft btn-sm'
+                        onClick={() => addToShoppingList(it)}
+                        title='Add to shopping list'
+                      >
+                        Restock
+                      </button>
+                      <button
+                        className='btn-outline btn-sm'
                         onClick={() => startEdit(it._id)}
                       >
                         Edit
                       </button>
-                      <button
-                        className='btn-outline'
-                        onClick={() => removeItem(it._id)}
-                      >
-                        Delete
-                      </button>
+                      {it.macros && (
+                        <button
+                          className='btn-outline btn-sm'
+                          onClick={() => setMacroItem(it)}
+                        >
+                          Macros
+                        </button>
+                      )}
                     </>
                   ) : (
                     <>
                       <button
-                        className='btn-primary'
+                        className='btn-primary btn-sm'
                         onClick={() => saveEdit(it._id)}
                       >
                         Save
                       </button>
                       <button
-                        className='btn-outline'
+                        className='btn-outline btn-sm'
                         onClick={() => cancelEdit(it._id)}
                       >
                         Cancel

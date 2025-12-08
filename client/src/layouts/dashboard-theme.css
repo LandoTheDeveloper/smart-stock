@@ -1,6 +1,7 @@
-:root {
+:root, [data-theme="light"] {
   --bg: #f6fbf7;
   --bg-elev: #ffffff;
+  --bg-secondary: #fafdfb;
   --primary: #2e7d32;
   --primary-10: #e8f5e9;
   --primary-20: #c8e6c9;
@@ -9,6 +10,23 @@
   --border: #e3ece5;
   --shadow: 0 10px 24px rgba(46, 125, 50, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
   --radius: 16px;
+  --danger: #dc2626;
+  --danger-bg: #fde7e7;
+}
+
+[data-theme="dark"] {
+  --bg: #0f1a12;
+  --bg-elev: #1a2b1e;
+  --bg-secondary: #152218;
+  --primary: #4caf50;
+  --primary-10: #1a3a1c;
+  --primary-20: #254528;
+  --text: #e8f5e9;
+  --muted: #9caa9e;
+  --border: #2d4a32;
+  --shadow: 0 10px 24px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2);
+  --danger: #ef4444;
+  --danger-bg: #3a1a1a;
 }
 
 * {
@@ -246,7 +264,7 @@ body {
 
 .input {
   color: var(--text);
-  background: #fff;
+  background: var(--bg-elev);
   border: 1px solid var(--border);
   padding: 9px 12px;
   border-radius: 10px;
@@ -259,7 +277,7 @@ body {
 .input:-webkit-autofill {
   -webkit-text-fill-color: var(--text) !important;
   transition: background-color 5000s ease-in-out 0s;
-  box-shadow: 0 0 0 1000px #fff inset !important;
+  box-shadow: 0 0 0 1000px var(--bg-elev) inset !important;
 }
 
 .table {
@@ -273,11 +291,11 @@ body {
   min-width: 600px;
 }
 .row:nth-child(even) {
-  background: #fafdfb;
+  background: var(--bg-secondary);
 }
 .row.head {
   font-weight: 700;
-  background: #f1f6f2;
+  background: var(--primary-10);
 }
 
 .pill {
@@ -371,7 +389,7 @@ body {
 .modal {
   width: 100%;
   max-width: 540px;
-  background: #fff;
+  background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow);
@@ -390,7 +408,7 @@ body {
 }
 .modal-body {
   padding: 16px;
-  background: #fff;
+  background: var(--bg-elev);
 }
 
 .macro-grid {
@@ -399,7 +417,7 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 .macro-box {
-  background: #fff;
+  background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
@@ -445,7 +463,7 @@ body {
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--bg-elev);
   font-weight: 700;
   font-size: 0.85rem;
 }
@@ -460,6 +478,15 @@ body {
   background: var(--primary-10);
   border: 1px solid var(--border);
   font-size: 0.8rem;
+  transition: all 0.15s ease;
+}
+.tag:hover {
+  background: var(--primary-20);
+}
+.tag-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 .recipe-macros {
   display: grid;
