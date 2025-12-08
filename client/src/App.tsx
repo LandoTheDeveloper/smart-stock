@@ -4,7 +4,6 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Pantry from './pages/Pantry';
 import Recipes from './pages/Recipes';
-import SavedRecipes from './pages/SavedRecipes';
 import ShoppingList from './pages/ShoppingList';
 import MealPlanner from './pages/MealPlanner';
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -26,7 +25,6 @@ export default function App() {
               <Route path='/dashboard' element={<Dashboard />} />
               <Route path='/pantry' element={<Pantry />} />
               <Route path='/recipes' element={<Recipes />} />
-              <Route path='/my-recipes' element={<SavedRecipes />} />
               <Route path='/shopping-list' element={<ShoppingList />} />
               <Route path='/meal-planner' element={<MealPlanner />} />
             </Route>

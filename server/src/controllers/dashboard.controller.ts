@@ -41,6 +41,7 @@ export const getOverview = async (req: Request, res: Response) => {
         id: item._id,
         item: item.name,
         qty: item.quantity,
+        unit: item.unit || 'count',
         expires: item.expirationDate
           ? item.expirationDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: item.expirationDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
           : 'N/A',
@@ -48,13 +49,26 @@ export const getOverview = async (req: Request, res: Response) => {
       };
     });
 
+    const locationCounts: Record<string, number> = {};
+    const categoryCounts: Record<string, number> = {};
+
+    for (const item of allItems) {
+      const loc = item.storageLocation || 'Pantry';
+      locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+
+      const cat = item.category || 'Other';
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    }
+
     res.json({
       success: true,
       data: {
         lowStock: lowStockItems.length,
         expiringSoon: expiringSoonItems.length,
         pantrySize: allItems.length,
-        recentActivity
+        recentActivity,
+        locationCounts,
+        categoryCounts
       }
     });
   } catch (error: any) {

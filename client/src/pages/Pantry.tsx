@@ -1,12 +1,34 @@
 import { useMemo, useState, useEffect } from 'react';
 import { api } from '../lib/api';
 
+const CATEGORIES = [
+  'Dairy',
+  'Produce',
+  'Meat',
+  'Seafood',
+  'Bakery',
+  'Frozen',
+  'Canned Goods',
+  'Grains & Pasta',
+  'Snacks',
+  'Beverages',
+  'Condiments',
+  'Spices',
+  'Other'
+];
+
+const STORAGE_LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Counter'];
+
+const UNITS = ['count', 'g', 'kg', 'ml', 'L', 'oz', 'lb', 'cups', 'tbsp', 'tsp'];
+
 type PantryItem = {
   _id: string;
   name: string;
   quantity: number;
   unit?: string;
   expirationDate?: string;
+  category?: string;
+  storageLocation?: string;
   macros?: {
     kcal: number;
     protein: number;
@@ -22,6 +44,9 @@ export default function Pantry() {
   const [items, setItems] = useState<PantryItem[]>([]);
   const [editing, setEditing] = useState<EditState>({});
   const [q, setQ] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
+  const LOCATIONS_WITH_ALL = ['All', ...STORAGE_LOCATIONS];
   const [macroItem, setMacroItem] = useState<PantryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +54,10 @@ export default function Pantry() {
   const [newItem, setNewItem] = useState({
     name: '',
     quantity: 1,
-    unit: '',
-    expirationDate: ''
+    unit: 'count',
+    expirationDate: '',
+    category: '',
+    storageLocation: 'Pantry'
   });
 
   useEffect(() => {
@@ -54,10 +81,24 @@ export default function Pantry() {
   };
 
   const filtered = useMemo(() => {
+    let result = items;
+
+    if (categoryFilter !== 'all') {
+      result = result.filter((i) => i.category === categoryFilter);
+    }
+
+    if (locationFilter !== 'all') {
+      result = result.filter((i) => (i.storageLocation || 'Pantry') === locationFilter);
+    }
+
     const s = q.trim().toLowerCase();
-    if (!s) return items;
-    return items.filter((i) => i.name.toLowerCase().includes(s));
-  }, [q, items]);
+    if (s) {
+      result = result.filter((i) => i.name.toLowerCase().includes(s));
+    }
+
+    return result;
+  }, [q, items, categoryFilter, locationFilter]);
+
 
   const startEdit = (id: string) => {
     const it = items.find((i) => i._id === id);
@@ -146,13 +187,15 @@ export default function Pantry() {
         name: newItem.name,
         quantity: newItem.quantity,
         unit: newItem.unit || undefined,
-        expirationDate: newItem.expirationDate || undefined
+        expirationDate: newItem.expirationDate || undefined,
+        category: newItem.category || undefined,
+        storageLocation: newItem.storageLocation
       });
 
       if (response.data.success) {
         setItems((prev) => [...prev, response.data.data]);
         setShowAddModal(false);
-        setNewItem({ name: '', quantity: 1, unit: '', expirationDate: '' });
+        setNewItem({ name: '', quantity: 1, unit: 'count', expirationDate: '', category: '', storageLocation: 'Pantry' });
       }
     } catch (err: any) {
       console.error('Failed to add item:', err);
@@ -199,13 +242,34 @@ export default function Pantry() {
       <section className='card table-card'>
         <div className='table-header'>
           <div className='table-title'>Pantry</div>
-          <div className='table-actions' style={{ alignItems: 'center' }}>
+          <div className='table-actions' style={{ alignItems: 'center', gap: '0.5rem' }}>
             <input
               className='input'
               placeholder='Search items…'
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
+            <select
+              className='input'
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              style={{ minWidth: 100 }}
+            >
+              {LOCATIONS_WITH_ALL.map(loc => (
+                <option key={loc} value={loc === 'All' ? 'all' : loc}>{loc}</option>
+              ))}
+            </select>
+            <select
+              className='input'
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              style={{ minWidth: 120 }}
+            >
+              <option value='all'>All Categories</option>
+              {CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
             <button className='btn-soft' onClick={() => setShowAddModal(true)}>
               Add Item
             </button>
@@ -215,10 +279,11 @@ export default function Pantry() {
         <div className='table'>
           <div
             className='row head'
-            style={{ gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1.6fr' }}
+            style={{ gridTemplateColumns: '2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
           >
             <div>Item</div>
             <div>Qty</div>
+            <div>Location</div>
             <div>Expires</div>
             <div>Status</div>
             <div>Actions</div>
@@ -231,11 +296,13 @@ export default function Pantry() {
               <div
                 className='row'
                 key={it._id}
-                style={{ gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1.6fr' }}
+                style={{ gridTemplateColumns: '2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
               >
                 <div>
                   <div className='cell-title'>{it.name}</div>
-                  <div className='cell-sub'>{it.unit || 'units'}</div>
+                  <div className='cell-sub'>
+                    {it.category || 'Uncategorized'}
+                  </div>
                 </div>
                 <div>
                   {isEditing ? (
@@ -247,11 +314,16 @@ export default function Pantry() {
                       onChange={(ev) =>
                         updateEditField(it._id, 'quantity', ev.target.value)
                       }
-                      style={{ width: 90 }}
+                      style={{ width: 70 }}
                     />
                   ) : (
-                    <span className='badge'>{it.quantity}</span>
+                    <span className='badge'>{it.quantity} {it.unit || 'count'}</span>
                   )}
+                </div>
+                <div>
+                  <span className='tag' style={{ fontSize: '0.75rem' }}>
+                    {it.storageLocation || 'Pantry'}
+                  </span>
                 </div>
                 <div>
                   {isEditing ? (
@@ -289,7 +361,7 @@ export default function Pantry() {
                       className='btn-soft'
                       onClick={() => setMacroItem(it)}
                     >
-                      View Macros
+                      Macros
                     </button>
                   )}
                   {!isEditing ? (
@@ -333,7 +405,7 @@ export default function Pantry() {
               <div style={{ gridColumn: '1 / -1', color: '#6b726d' }}>
                 {items.length === 0
                   ? 'No items in pantry. Click "Add Item" to get started.'
-                  : 'No items match your search.'}
+                  : 'No items match your filters.'}
               </div>
             </div>
           )}
@@ -374,36 +446,75 @@ export default function Pantry() {
                       required
                     />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                      Quantity
-                    </label>
-                    <input
-                      className='input'
-                      type='number'
-                      min={0}
-                      value={newItem.quantity}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          quantity: Math.max(0, Number(e.target.value) || 0)
-                        }))
-                      }
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        Quantity
+                      </label>
+                      <input
+                        className='input'
+                        type='number'
+                        min={0}
+                        value={newItem.quantity}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({
+                            ...prev,
+                            quantity: Math.max(0, Number(e.target.value) || 0)
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        Unit
+                      </label>
+                      <select
+                        className='input'
+                        value={newItem.unit}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({ ...prev, unit: e.target.value }))
+                        }
+                      >
+                        {UNITS.map(u => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                      Unit
-                    </label>
-                    <input
-                      className='input'
-                      type='text'
-                      value={newItem.unit}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({ ...prev, unit: e.target.value }))
-                      }
-                      placeholder='e.g., packs, kg, bottles'
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        Category
+                      </label>
+                      <select
+                        className='input'
+                        value={newItem.category}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                      >
+                        <option value=''>Select category</option>
+                        {CATEGORIES.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        Storage Location
+                      </label>
+                      <select
+                        className='input'
+                        value={newItem.storageLocation}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({ ...prev, storageLocation: e.target.value }))
+                        }
+                      >
+                        {STORAGE_LOCATIONS.map(loc => (
+                          <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>

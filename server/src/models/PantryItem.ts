@@ -8,13 +8,40 @@ export interface IMacros {
   serving: string;
 }
 
+export const CATEGORIES = [
+  'Dairy',
+  'Produce',
+  'Meat',
+  'Seafood',
+  'Bakery',
+  'Frozen',
+  'Canned Goods',
+  'Grains & Pasta',
+  'Snacks',
+  'Beverages',
+  'Condiments',
+  'Spices',
+  'Other'
+] as const;
+
+export const STORAGE_LOCATIONS = [
+  'Fridge',
+  'Freezer',
+  'Pantry',
+  'Counter'
+] as const;
+
+export type Category = typeof CATEGORIES[number];
+export type StorageLocation = typeof STORAGE_LOCATIONS[number];
+
 export interface IPantryItem extends Document {
   userId: mongoose.Types.ObjectId;
   name: string;
   quantity: number;
   unit?: string;
   expirationDate?: Date;
-  category?: string;
+  category?: Category;
+  storageLocation?: StorageLocation;
   barcode?: string;
   imageUrl?: string;
   addedDate: Date;
@@ -52,7 +79,13 @@ const pantryItemSchema = new mongoose.Schema<IPantryItem>({
   },
   category: {
     type: String,
+    enum: CATEGORIES,
     trim: true
+  },
+  storageLocation: {
+    type: String,
+    enum: STORAGE_LOCATIONS,
+    default: 'Pantry'
   },
   barcode: {
     type: String,
@@ -91,6 +124,7 @@ const pantryItemSchema = new mongoose.Schema<IPantryItem>({
 pantryItemSchema.index({ userId: 1, name: 1 });
 pantryItemSchema.index({ userId: 1, expirationDate: 1 });
 pantryItemSchema.index({ userId: 1, category: 1 });
+pantryItemSchema.index({ userId: 1, storageLocation: 1 });
 
 pantryItemSchema.pre('save', function(next) {
   this.lastUpdated = new Date();

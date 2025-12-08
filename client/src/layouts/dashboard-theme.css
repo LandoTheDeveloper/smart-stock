@@ -156,28 +156,40 @@ body {
   color: var(--text);
 }
 
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+
 .dash-main {
   width: 100%;
   min-width: 0;
   overflow-x: hidden;
   padding: 24px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+}
+.dash-main > *:not(.dash-header) {
+  flex: 1;
 }
 
 .dash-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px;
+  border-radius: 12px;
+  padding: 10px 16px;
   box-shadow: var(--shadow);
+  flex-shrink: 0;
 }
 .dash-title {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-right: 16px;
 }
 .header-actions {
   display: flex;

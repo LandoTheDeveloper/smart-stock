@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import PantryItem from '../models/PantryItem';
+import PantryItem, { CATEGORIES, STORAGE_LOCATIONS } from '../models/PantryItem';
 
 export const getAllItems = async (req: Request, res: Response) => {
   try {
@@ -12,7 +12,13 @@ export const getAllItems = async (req: Request, res: Response) => {
       });
     }
 
-    const items = await PantryItem.find({ userId }).sort({ name: 1 });
+    const { category, storageLocation } = req.query;
+
+    const filter: any = { userId };
+    if (category) filter.category = category;
+    if (storageLocation) filter.storageLocation = storageLocation;
+
+    const items = await PantryItem.find(filter).sort({ name: 1 });
 
     res.json({
       success: true,
@@ -28,6 +34,16 @@ export const getAllItems = async (req: Request, res: Response) => {
   }
 };
 
+export const getCategories = async (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      categories: CATEGORIES,
+      storageLocations: STORAGE_LOCATIONS
+    }
+  });
+};
+
 export const createItem = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -39,7 +55,7 @@ export const createItem = async (req: Request, res: Response) => {
       });
     }
 
-    const { name, quantity, unit, expirationDate, category, barcode, notes, macros } = req.body;
+    const { name, quantity, unit, expirationDate, category, storageLocation, barcode, notes, macros } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -55,6 +71,7 @@ export const createItem = async (req: Request, res: Response) => {
       unit,
       expirationDate: expirationDate ? new Date(expirationDate) : undefined,
       category,
+      storageLocation: storageLocation || 'Pantry',
       barcode,
       notes,
       macros
@@ -98,13 +115,14 @@ export const updateItem = async (req: Request, res: Response) => {
       });
     }
 
-    const { name, quantity, unit, expirationDate, category, barcode, notes, macros } = req.body;
+    const { name, quantity, unit, expirationDate, category, storageLocation, barcode, notes, macros } = req.body;
 
     if (name !== undefined) item.name = name;
     if (quantity !== undefined) item.quantity = quantity;
     if (unit !== undefined) item.unit = unit;
     if (expirationDate !== undefined) item.expirationDate = expirationDate ? new Date(expirationDate) : undefined;
     if (category !== undefined) item.category = category;
+    if (storageLocation !== undefined) item.storageLocation = storageLocation;
     if (barcode !== undefined) item.barcode = barcode;
     if (notes !== undefined) item.notes = notes;
     if (macros !== undefined) item.macros = macros;
