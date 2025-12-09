@@ -74,9 +74,55 @@ export const generateRecipes = async (
       });
     }
 
-    const inventoryList = pantryItems
-      .map((item) => `${item.name} (${item.quantity} ${item.unit || 'unit'})`)
-      .join(', ');
+    // Filter out expired items and categorize by freshness
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const validItems = pantryItems.filter(item => {
+      if (!item.expirationDate) return true;
+      return new Date(item.expirationDate) > now;
+    });
+
+    if (validItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'All pantry items have expired. Please add fresh items to your pantry.',
+      });
+    }
+
+    // Categorize items by expiration urgency
+    const expiringVerySoon: string[] = [];
+    const expiringSoon: string[] = [];
+    const freshItems: string[] = [];
+
+    validItems.forEach(item => {
+      const itemStr = `${item.name} (${item.quantity} ${item.unit || 'unit'})`;
+      if (item.expirationDate) {
+        const expDate = new Date(item.expirationDate);
+        if (expDate <= threeDaysFromNow) {
+          expiringVerySoon.push(itemStr);
+        } else if (expDate <= sevenDaysFromNow) {
+          expiringSoon.push(itemStr);
+        } else {
+          freshItems.push(itemStr);
+        }
+      } else {
+        freshItems.push(itemStr);
+      }
+    });
+
+    // Build inventory description with expiration context
+    let inventoryDescription = '\n**AVAILABLE PANTRY ITEMS:**';
+    if (expiringVerySoon.length > 0) {
+      inventoryDescription += `\n- Expiring within 3 days (try to use if it fits the recipe naturally): ${expiringVerySoon.join(', ')}`;
+    }
+    if (expiringSoon.length > 0) {
+      inventoryDescription += `\n- Expiring within 7 days: ${expiringSoon.join(', ')}`;
+    }
+    if (freshItems.length > 0) {
+      inventoryDescription += `\n- Other items: ${freshItems.join(', ')}`;
+    }
 
     // Build user preferences string
     let preferencesPrompt = '';
@@ -117,15 +163,25 @@ export const generateRecipes = async (
       }
     }
 
-    const basePrompt = `Generate 3-5 recipe suggestions based on the following pantry inventory: ${inventoryList}.${preferencesPrompt}
+    const basePrompt = `You are a helpful cooking assistant. Generate 3-5 REAL recipe suggestions that the user can make.
+${inventoryDescription}
+${preferencesPrompt}
+
+**IMPORTANT GUIDELINES:**
+1. ONLY suggest real, established recipes from actual cuisines (e.g., Chicken Stir Fry, Pasta Carbonara, Beef Tacos, Vegetable Curry). Do NOT invent random combinations.
+2. Each recipe should use a SENSIBLE SUBSET of the available ingredients - NOT all of them at once. A typical recipe uses 5-10 ingredients.
+3. It's OK if a recipe requires 1-3 common pantry staples not listed (like salt, pepper, oil, garlic, onion, basic spices). Mark these clearly in the ingredients.
+4. Prioritize recipes that can use items expiring soon, but ONLY if they fit naturally into a real recipe. Don't force expiring items into incompatible dishes.
+5. Suggest VARIED recipes - different cuisines, cooking methods, and meal types.
+6. Consider practical cooking - recipes should be achievable for a home cook.
 
 For each recipe, provide:
-- Title
+- Title (name of an actual dish)
 - Preparation time in minutes
 - Number of servings
-- Tags (e.g., quick, breakfast, dinner, vegetarian, etc.)
-- Nutritional information (kcal, protein in g, carbs in g, fat in g)
-- List of ingredients with amounts
+- Tags (e.g., quick, breakfast, dinner, vegetarian, cuisine type, etc.)
+- Nutritional information (kcal, protein in g, carbs in g, fat in g) - provide realistic estimates
+- List of ingredients with amounts (mark items NOT in pantry with "[buy]" suffix)
 - Step-by-step cooking instructions
 
 Return the response as a valid JSON array with this exact structure:
@@ -135,13 +191,14 @@ Return the response as a valid JSON array with this exact structure:
     "title": "Recipe Title",
     "minutes": 30,
     "servings": 2,
-    "tags": ["quick", "dinner"],
+    "tags": ["quick", "dinner", "italian"],
     "kcal": 500,
     "protein": 30,
     "carbs": 50,
     "fat": 15,
     "ingredients": [
-      {"name": "Ingredient Name", "amount": "100g"}
+      {"name": "Ingredient Name", "amount": "100g"},
+      {"name": "Onion [buy]", "amount": "1 medium"}
     ],
     "steps": [
       "Step 1 description",
