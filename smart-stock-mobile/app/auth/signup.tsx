@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   View,
@@ -8,6 +7,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Image,
+  Alert,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { useAuth } from "../../context/authcontext";
@@ -18,12 +18,27 @@ export default function SignupScreen() {
   const router = useRouter();
   const { signup } = useAuth();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSignup = async () => {
-    await signup({ email, password: pass });
-    router.replace("/main/dashboard");
+    if (!name.trim() || !email.trim() || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await signup({ email, password, name });
+      router.replace("/main/dashboard");
+    } catch (err: any) {
+      console.log("SIGNUP ERROR", err);
+      Alert.alert("Signup failed", err?.message ?? "Unknown error");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -35,8 +50,17 @@ export default function SignupScreen() {
 
         <TextInput
           style={styles.input}
+          placeholder="Name"
+          autoCapitalize="words"
+          value={name}
+          onChangeText={setName}
+        />
+
+        <TextInput
+          style={styles.input}
           placeholder="Email"
           autoCapitalize="none"
+          keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
         />
@@ -45,12 +69,18 @@ export default function SignupScreen() {
           style={styles.input}
           placeholder="Password"
           secureTextEntry
-          value={pass}
-          onChangeText={setPass}
+          value={password}
+          onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleSignup}>
-          <Text style={styles.buttonText}>Sign Up</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleSignup}
+          disabled={submitting}
+        >
+          <Text style={styles.buttonText}>
+            {submitting ? "Creating account..." : "Sign Up"}
+          </Text>
         </TouchableOpacity>
 
         <Text style={styles.linkText}>

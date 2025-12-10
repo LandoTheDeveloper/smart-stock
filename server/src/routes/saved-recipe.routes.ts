@@ -16,6 +16,7 @@ router.get('/:id', authenticate, getRecipeById);
 router.post('/', authenticate, saveRecipe);
 router.put('/:id', authenticate, updateRecipe);
 router.put('/:id/favorite', authenticate, toggleFavorite);
+router.patch('/:id/favorite', authenticate, toggleFavorite); // Mobile app uses PATCH
 router.delete('/:id', authenticate, deleteRecipe);
 
 export default router;

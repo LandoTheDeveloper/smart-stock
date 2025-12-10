@@ -13,11 +13,13 @@ const router = express.Router();
 
 router.use('/auth', authRoutes);
 router.use('/generate', aiRoutes);
+router.use('/ai', aiRoutes); // Alias for mobile app: /api/ai/generate-recipes
 router.use('/dashboard', dashboardRoutes);
 router.use('/pantry', pantryRoutes);
 router.use('/shopping-list', shoppingListRoutes);
 router.use('/meal-plans', mealPlanRoutes);
 router.use('/recipes', savedRecipeRoutes);
+router.use('/saved-recipes', savedRecipeRoutes); // Alias for mobile app compatibility
 router.use('/user', userRoutes);
 router.use('/recipe-history', recipeHistoryRoutes);
 

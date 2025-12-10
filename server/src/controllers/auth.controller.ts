@@ -155,6 +155,6 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response) => {
 export const getProfile = async (req: Request, res: Response) => {
   res.json({
     success: true,
-    user: req.user,
+    user: (req as any).user,
   });
 };

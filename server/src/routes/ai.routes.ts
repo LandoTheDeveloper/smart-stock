@@ -6,5 +6,5 @@ const router = express.Router();
 
 router.post('/', authenticate, generateContent);
 router.post('/recipes', authenticate, generateRecipes);
-// retrigger deployment
+router.post('/generate-recipes', authenticate, generateRecipes); // Alias for mobile app
 export default router;

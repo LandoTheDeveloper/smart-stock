@@ -4,7 +4,7 @@ import PantryItem from '../models/PantryItem';
 
 export const getAllItems = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
 
     if (!userId) {
       return res.status(401).json({
@@ -32,7 +32,7 @@ export const getAllItems = async (req: Request, res: Response) => {
 
 export const createItem = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
 
     if (!userId) {
       return res.status(401).json({
@@ -79,7 +79,7 @@ export const createItem = async (req: Request, res: Response) => {
 
 export const updateItem = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
     const { id } = req.params;
 
     if (!userId) {
@@ -126,10 +126,13 @@ export const updateItem = async (req: Request, res: Response) => {
 
 export const toggleItem = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    console.log('=== TOGGLE ITEM CALLED ===');
+    const userId = (req as any).userId;
     const { id } = req.params;
+    console.log('Toggle - userId:', userId, 'itemId:', id);
 
     if (!userId) {
+      console.log('Toggle - No userId found, returning 401');
       return res.status(401).json({
         success: false,
         message: 'Unauthorized'
@@ -137,6 +140,7 @@ export const toggleItem = async (req: Request, res: Response) => {
     }
 
     const item = await ShoppingListItem.findOne({ _id: id, userId });
+    console.log('Toggle - Found item:', item ? item._id : 'NOT FOUND');
 
     if (!item) {
       return res.status(404).json({
@@ -165,7 +169,7 @@ export const toggleItem = async (req: Request, res: Response) => {
 
 export const deleteItem = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
     const { id } = req.params;
 
     if (!userId) {
@@ -200,7 +204,7 @@ export const deleteItem = async (req: Request, res: Response) => {
 
 export const clearChecked = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
 
     if (!userId) {
       return res.status(401).json({
@@ -227,7 +231,7 @@ export const clearChecked = async (req: Request, res: Response) => {
 
 export const generateFromLowStock = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
 
     if (!userId) {
       return res.status(401).json({
@@ -293,7 +297,7 @@ export const generateFromLowStock = async (req: Request, res: Response) => {
 
 export const addToPantry = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
     const { id } = req.params;
 
     if (!userId) {

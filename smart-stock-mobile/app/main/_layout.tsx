@@ -14,14 +14,28 @@ export default function MainLayout() {
       <Stack.Screen
         name="pantry"
         options={{
-          title: "Pantry",
+          headerShown: false,
         }}
       />
 
       <Stack.Screen
         name="recipes"
         options={{
-          title: "Recipes",
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="shopping"
+        options={{
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="mealplanner"
+        options={{
+          headerShown: false,
         }}
       />
 
@@ -38,7 +52,13 @@ export default function MainLayout() {
           headerShown: false,
         }}
       />
+
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
-

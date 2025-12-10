@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/authcontext";
 
 import AppleAvatar from "../../assets/AppleAvatar.png";
@@ -70,6 +71,15 @@ export default function ProfilePage() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Recipe Preferences Button */}
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => router.push("/main/settings")}
+      >
+        <Ionicons name="settings-outline" size={20} color="#2e7d32" style={{ marginRight: 8 }} />
+        <Text style={styles.settingsText}>Recipe Preferences & Allergies</Text>
+      </TouchableOpacity>
 
       {/* Sign Out Button */}
       <TouchableOpacity
@@ -160,6 +170,22 @@ const styles = StyleSheet.create({
   choiceImg: {
     width: "100%",
     height: "100%",
+  },
+
+  settingsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2e7d32",
+  },
+  settingsText: {
+    color: "#2e7d32",
+    fontWeight: "600",
   },
 
   signOutButton: {
