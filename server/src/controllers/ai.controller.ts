@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import PantryItem from '../models/PantryItem';
 import User from '../models/User';
 import RecipeHistory from '../models/RecipeHistory';
+import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '../utils/household.utils';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -60,10 +61,15 @@ export const generateRecipes = async (
       });
     }
 
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
     // Fetch user preferences and pantry items in parallel
     const [user, pantryItems] = await Promise.all([
       User.findById(userId),
-      PantryItem.find({ userId })
+      PantryItem.find(buildHouseholdQuery(context))
     ]);
 
     if (pantryItems.length === 0) {
@@ -227,9 +233,9 @@ Return the response as a valid JSON array with this exact structure:
       });
     }
 
-    // Save to history
+    // Save to history with household attribution
     await RecipeHistory.create({
-      userId,
+      ...buildItemAttribution(context),
       prompt: userPrompt || undefined,
       recipes
     });

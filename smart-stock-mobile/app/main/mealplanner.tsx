@@ -42,6 +42,7 @@ interface MealPlan {
   recipe: Recipe;
   completed: boolean;
   notes?: string;
+  createdByName?: string;
 }
 
 interface SavedRecipe {
@@ -495,12 +496,17 @@ export default function MealPlannerScreen() {
                           onPress={() => handleToggleCompleted(meal._id)}
                           onLongPress={() => handleDeleteMeal(meal._id, meal.recipe.title)}
                         >
-                          <Text
-                            style={[styles.mealTitle, meal.completed && styles.mealTitleCompleted]}
-                            numberOfLines={1}
-                          >
-                            {meal.recipe.title}
-                          </Text>
+                          <View style={styles.mealContent}>
+                            <Text
+                              style={[styles.mealTitle, meal.completed && styles.mealTitleCompleted]}
+                              numberOfLines={1}
+                            >
+                              {meal.recipe.title}
+                            </Text>
+                            {meal.createdByName && (
+                              <Text style={styles.mealAuthor}>by {meal.createdByName}</Text>
+                            )}
+                          </View>
                           <Text style={styles.mealMeta}>
                             {meal.recipe.minutes}min
                           </Text>
@@ -918,18 +924,26 @@ const styles = StyleSheet.create({
   mealItemCompleted: {
     opacity: 0.5,
   },
+  mealContent: {
+    flex: 1,
+  },
   mealTitle: {
     fontSize: 14,
     fontWeight: "500",
     color: "#333",
-    flex: 1,
   },
   mealTitleCompleted: {
     textDecorationLine: "line-through",
   },
+  mealAuthor: {
+    fontSize: 11,
+    color: "#666",
+    marginTop: 2,
+  },
   mealMeta: {
     fontSize: 12,
     color: "#666",
+    marginLeft: 8,
   },
   addMealButton: {
     flexDirection: "row",

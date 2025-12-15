@@ -2,16 +2,22 @@ import { Request, Response } from 'express';
 import MealPlan from '../models/MealPlan';
 import PantryItem from '../models/PantryItem';
 import ShoppingListItem from '../models/ShoppingListItem';
+import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '../utils/household.utils';
 
 export const getMealPlans = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized'
       });
+    }
+
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
 
     const { startDate, endDate } = req.query;
@@ -24,7 +30,7 @@ export const getMealPlans = async (req: Request, res: Response) => {
       : getEndOfWeek(new Date());
 
     const mealPlans = await MealPlan.find({
-      userId,
+      ...buildHouseholdQuery(context),
       date: { $gte: start, $lte: end }
     }).sort({ date: 1, mealType: 1 });
 
@@ -44,13 +50,18 @@ export const getMealPlans = async (req: Request, res: Response) => {
 
 export const addMealPlan = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized'
       });
+    }
+
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
 
     const { date, mealType, recipe, notes } = req.body;
@@ -63,7 +74,7 @@ export const addMealPlan = async (req: Request, res: Response) => {
     }
 
     const mealPlan = new MealPlan({
-      userId,
+      ...buildItemAttribution(context),
       date: new Date(date),
       mealType,
       recipe,
@@ -89,7 +100,7 @@ export const addMealPlan = async (req: Request, res: Response) => {
 
 export const updateMealPlan = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -99,7 +110,13 @@ export const updateMealPlan = async (req: Request, res: Response) => {
       });
     }
 
-    const mealPlan = await MealPlan.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const mealPlan = await MealPlan.findOne(query);
 
     if (!mealPlan) {
       return res.status(404).json({
@@ -135,7 +152,7 @@ export const updateMealPlan = async (req: Request, res: Response) => {
 
 export const toggleMealCompleted = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -145,7 +162,13 @@ export const toggleMealCompleted = async (req: Request, res: Response) => {
       });
     }
 
-    const mealPlan = await MealPlan.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const mealPlan = await MealPlan.findOne(query);
 
     if (!mealPlan) {
       return res.status(404).json({
@@ -174,7 +197,7 @@ export const toggleMealCompleted = async (req: Request, res: Response) => {
 
 export const deleteMealPlan = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -184,7 +207,13 @@ export const deleteMealPlan = async (req: Request, res: Response) => {
       });
     }
 
-    const mealPlan = await MealPlan.findOneAndDelete({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const mealPlan = await MealPlan.findOneAndDelete(query);
 
     if (!mealPlan) {
       return res.status(404).json({
@@ -209,13 +238,18 @@ export const deleteMealPlan = async (req: Request, res: Response) => {
 
 export const getIngredientComparison = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized'
       });
+    }
+
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
 
     const { startDate, endDate } = req.query;
@@ -228,7 +262,7 @@ export const getIngredientComparison = async (req: Request, res: Response) => {
       : getEndOfWeek(new Date());
 
     const mealPlans = await MealPlan.find({
-      userId,
+      ...buildHouseholdQuery(context),
       date: { $gte: start, $lte: end },
       completed: false
     });
@@ -246,7 +280,7 @@ export const getIngredientComparison = async (req: Request, res: Response) => {
       }
     }
 
-    const pantryItems = await PantryItem.find({ userId });
+    const pantryItems = await PantryItem.find(buildHouseholdQuery(context));
 
     const comparison = [];
     for (const [key, value] of ingredientMap) {
@@ -286,13 +320,18 @@ export const getIngredientComparison = async (req: Request, res: Response) => {
 
 export const generateShoppingList = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized'
       });
+    }
+
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
 
     const { startDate, endDate } = req.body;
@@ -305,7 +344,7 @@ export const generateShoppingList = async (req: Request, res: Response) => {
       : getEndOfWeek(new Date());
 
     const mealPlans = await MealPlan.find({
-      userId,
+      ...buildHouseholdQuery(context),
       date: { $gte: start, $lte: end },
       completed: false
     });
@@ -323,9 +362,9 @@ export const generateShoppingList = async (req: Request, res: Response) => {
       }
     }
 
-    const pantryItems = await PantryItem.find({ userId });
+    const pantryItems = await PantryItem.find(buildHouseholdQuery(context));
 
-    const existingShoppingItems = await ShoppingListItem.find({ userId });
+    const existingShoppingItems = await ShoppingListItem.find(buildHouseholdQuery(context));
     const existingNames = new Set(
       existingShoppingItems.map(i => i.name.toLowerCase().trim())
     );
@@ -339,7 +378,7 @@ export const generateShoppingList = async (req: Request, res: Response) => {
 
       if (!inPantry && !inShoppingList) {
         const shoppingItem = new ShoppingListItem({
-          userId,
+          ...buildItemAttribution(context),
           name: value.name,
           quantity: 1,
           unit: value.amounts.join(', '),

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import ShoppingListItem from '../models/ShoppingListItem';
 import PantryItem from '../models/PantryItem';
+import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '../utils/household.utils';
 
 export const getAllItems = async (req: Request, res: Response) => {
   try {
@@ -13,7 +14,12 @@ export const getAllItems = async (req: Request, res: Response) => {
       });
     }
 
-    const items = await ShoppingListItem.find({ userId })
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const items = await ShoppingListItem.find(buildHouseholdQuery(context))
       .sort({ checked: 1, priority: -1, addedDate: -1 });
 
     res.json({
@@ -41,6 +47,11 @@ export const createItem = async (req: Request, res: Response) => {
       });
     }
 
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
     const { name, quantity, unit, category, priority, pantryItemId } = req.body;
 
     if (!name) {
@@ -51,7 +62,7 @@ export const createItem = async (req: Request, res: Response) => {
     }
 
     const newItem = new ShoppingListItem({
-      userId,
+      ...buildItemAttribution(context),
       name,
       quantity: quantity || 1,
       unit,
@@ -89,7 +100,13 @@ export const updateItem = async (req: Request, res: Response) => {
       });
     }
 
-    const item = await ShoppingListItem.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const item = await ShoppingListItem.findOne(query);
 
     if (!item) {
       return res.status(404).json({
@@ -126,21 +143,23 @@ export const updateItem = async (req: Request, res: Response) => {
 
 export const toggleItem = async (req: Request, res: Response) => {
   try {
-    console.log('=== TOGGLE ITEM CALLED ===');
     const userId = (req as any).userId;
     const { id } = req.params;
-    console.log('Toggle - userId:', userId, 'itemId:', id);
 
     if (!userId) {
-      console.log('Toggle - No userId found, returning 401');
       return res.status(401).json({
         success: false,
         message: 'Unauthorized'
       });
     }
 
-    const item = await ShoppingListItem.findOne({ _id: id, userId });
-    console.log('Toggle - Found item:', item ? item._id : 'NOT FOUND');
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const item = await ShoppingListItem.findOne(query);
 
     if (!item) {
       return res.status(404).json({
@@ -179,7 +198,13 @@ export const deleteItem = async (req: Request, res: Response) => {
       });
     }
 
-    const item = await ShoppingListItem.findOneAndDelete({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const item = await ShoppingListItem.findOneAndDelete(query);
 
     if (!item) {
       return res.status(404).json({
@@ -213,7 +238,13 @@ export const clearChecked = async (req: Request, res: Response) => {
       });
     }
 
-    const result = await ShoppingListItem.deleteMany({ userId, checked: true });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { ...buildHouseholdQuery(context), checked: true };
+    const result = await ShoppingListItem.deleteMany(query);
 
     res.json({
       success: true,
@@ -240,10 +271,13 @@ export const generateFromLowStock = async (req: Request, res: Response) => {
       });
     }
 
-    const lowStockItems = await PantryItem.find({
-      userId,
-      quantity: { $lte: 2 }
-    });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const pantryQuery = { ...buildHouseholdQuery(context), quantity: { $lte: 2 } };
+    const lowStockItems = await PantryItem.find(pantryQuery);
 
     if (lowStockItems.length === 0) {
       return res.json({
@@ -253,10 +287,8 @@ export const generateFromLowStock = async (req: Request, res: Response) => {
       });
     }
 
-    const existingShoppingItems = await ShoppingListItem.find({
-      userId,
-      pantryItemId: { $in: lowStockItems.map(i => i._id) }
-    });
+    const shoppingQuery = { ...buildHouseholdQuery(context), pantryItemId: { $in: lowStockItems.map(i => i._id) } };
+    const existingShoppingItems = await ShoppingListItem.find(shoppingQuery);
 
     const existingPantryIds = new Set(
       existingShoppingItems.map(i => i.pantryItemId?.toString())
@@ -267,7 +299,7 @@ export const generateFromLowStock = async (req: Request, res: Response) => {
       const pantryId = (pantryItem._id as string).toString();
       if (!existingPantryIds.has(pantryId)) {
         const shoppingItem = new ShoppingListItem({
-          userId,
+          ...buildItemAttribution(context),
           name: pantryItem.name,
           quantity: 1,
           unit: pantryItem.unit,
@@ -307,7 +339,13 @@ export const addToPantry = async (req: Request, res: Response) => {
       });
     }
 
-    const shoppingItem = await ShoppingListItem.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const shoppingItem = await ShoppingListItem.findOne(query);
 
     if (!shoppingItem) {
       return res.status(404).json({
@@ -333,7 +371,7 @@ export const addToPantry = async (req: Request, res: Response) => {
     }
 
     const newPantryItem = new PantryItem({
-      userId,
+      ...buildItemAttribution(context),
       name: shoppingItem.name,
       quantity: shoppingItem.quantity,
       unit: shoppingItem.unit,

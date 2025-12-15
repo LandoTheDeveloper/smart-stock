@@ -2,6 +2,9 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IShoppingListItem extends Document {
   userId: mongoose.Types.ObjectId;
+  householdId?: mongoose.Types.ObjectId;
+  createdByUserId?: mongoose.Types.ObjectId;
+  createdByName?: string;
   name: string;
   quantity: number;
   unit?: string;
@@ -21,6 +24,19 @@ const shoppingListItemSchema = new Schema<IShoppingListItem>(
       ref: 'User',
       required: [true, 'User ID is required'],
       index: true,
+    },
+    householdId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Household',
+      index: true,
+    },
+    createdByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    createdByName: {
+      type: String,
+      trim: true,
     },
     name: {
       type: String,
@@ -65,5 +81,6 @@ const shoppingListItemSchema = new Schema<IShoppingListItem>(
 
 shoppingListItemSchema.index({ userId: 1, checked: 1 });
 shoppingListItemSchema.index({ userId: 1, category: 1 });
+shoppingListItemSchema.index({ householdId: 1, checked: 1 });
 
 export default mongoose.model<IShoppingListItem>('ShoppingListItem', shoppingListItemSchema);

@@ -35,6 +35,7 @@ type SavedRecipe = {
   isFavorite: boolean;
   isCustom: boolean;
   notes?: string;
+  createdByName?: string;
 };
 
 type RecipeHistoryItem = {
@@ -667,10 +668,17 @@ export default function Recipes() {
                   {filteredSaved.map((r) => (
                     <div key={r._id} className='recipe-card card'>
                       <div className='recipe-head'>
-                        <div className='recipe-title' style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {r.title}
-                          {r.isFavorite && <span style={{ color: '#ef4444' }}>*</span>}
-                          {r.isCustom && <span className='tag' style={{ fontSize: '0.65rem' }}>Custom</span>}
+                        <div>
+                          <div className='recipe-title' style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {r.title}
+                            {r.isFavorite && <span style={{ color: '#ef4444' }}>*</span>}
+                            {r.isCustom && <span className='tag' style={{ fontSize: '0.65rem' }}>Custom</span>}
+                          </div>
+                          {r.createdByName && (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 2 }}>
+                              by {r.createdByName}
+                            </div>
+                          )}
                         </div>
                         <div className='recipe-meta'>
                           <span className='chip'>{r.minutes} min</span>

@@ -1,11 +1,19 @@
 import mongoose, { Document } from 'mongoose';
 
-export interface IMacros {
-  kcal: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  serving: string;
+export interface INutrition {
+  kcal?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  saturatedFat?: number;
+  serving?: string;
+  servingSize?: number;
+  servingUnit?: string;
+  nutriScore?: string; // A, B, C, D, E
+  novaGroup?: number; // 1-4 (food processing level)
 }
 
 export const CATEGORIES = [
@@ -36,6 +44,9 @@ export type StorageLocation = typeof STORAGE_LOCATIONS[number];
 
 export interface IPantryItem extends Document {
   userId: mongoose.Types.ObjectId;
+  householdId?: mongoose.Types.ObjectId;
+  createdByUserId?: mongoose.Types.ObjectId;
+  createdByName?: string;
   name: string;
   quantity: number;
   unit?: string;
@@ -47,7 +58,8 @@ export interface IPantryItem extends Document {
   addedDate: Date;
   lastUpdated: Date;
   notes?: string;
-  macros?: IMacros;
+  nutrition?: INutrition;
+  offCategories?: string[]; // OpenFoodFacts categories for shelf life calculation
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +70,19 @@ const pantryItemSchema = new mongoose.Schema<IPantryItem>({
     ref: 'User',
     required: [true, 'User ID is required'],
     index: true
+  },
+  householdId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Household',
+    index: true
+  },
+  createdByUserId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  createdByName: {
+    type: String,
+    trim: true
   },
   name: {
     type: String,
@@ -107,15 +132,27 @@ const pantryItemSchema = new mongoose.Schema<IPantryItem>({
     type: String,
     trim: true
   },
-  macros: {
+  nutrition: {
     type: {
       kcal: { type: Number },
       protein: { type: Number },
       carbs: { type: Number },
       fat: { type: Number },
-      serving: { type: String }
+      fiber: { type: Number },
+      sugar: { type: Number },
+      sodium: { type: Number },
+      saturatedFat: { type: Number },
+      serving: { type: String },
+      servingSize: { type: Number },
+      servingUnit: { type: String },
+      nutriScore: { type: String },
+      novaGroup: { type: Number }
     },
     required: false
+  },
+  offCategories: {
+    type: [String],
+    default: undefined
   }
 }, {
   timestamps: true
@@ -125,6 +162,8 @@ pantryItemSchema.index({ userId: 1, name: 1 });
 pantryItemSchema.index({ userId: 1, expirationDate: 1 });
 pantryItemSchema.index({ userId: 1, category: 1 });
 pantryItemSchema.index({ userId: 1, storageLocation: 1 });
+pantryItemSchema.index({ householdId: 1, name: 1 });
+pantryItemSchema.index({ householdId: 1, expirationDate: 1 });
 
 pantryItemSchema.pre('save', function(next) {
   this.lastUpdated = new Date();

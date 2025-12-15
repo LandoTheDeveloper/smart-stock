@@ -9,6 +9,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/recipes': 'Recipes',
   '/shopping-list': 'Shopping List',
   '/meal-planner': 'Meal Planner',
+  '/household': 'Household',
   '/settings': 'Settings'
 };
 
@@ -79,6 +80,14 @@ export default function DashboardLayout() {
             }
           >
             <span className='nav-dot' /> Meal Planner
+          </NavLink>
+          <NavLink
+            to='/household'
+            className={({ isActive }) =>
+              'nav-item' + (isActive ? ' active' : '')
+            }
+          >
+            <span className='nav-dot' /> Household
           </NavLink>
           <NavLink
             to='/settings'

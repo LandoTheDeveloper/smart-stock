@@ -19,6 +19,8 @@ export interface IUser extends Document {
   isActive: boolean;
   lastLogin?: Date;
   preferences?: IUserPreferences;
+  households: mongoose.Types.ObjectId[];
+  activeHouseholdId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -69,6 +71,14 @@ const userSchema = new mongoose.Schema<IUser>({
     calorieTarget: { type: Number, default: 0 },
     proteinTarget: { type: Number, default: 0 },
     cuisinePreferences: { type: String, default: '' }
+  },
+  households: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Household'
+  }],
+  activeHouseholdId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Household'
   }
 }, {
   timestamps: true

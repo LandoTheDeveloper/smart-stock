@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import PantryItem, { CATEGORIES, STORAGE_LOCATIONS } from '../models/PantryItem';
+import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '../utils/household.utils';
 
 export const getAllItems = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -12,9 +13,14 @@ export const getAllItems = async (req: Request, res: Response) => {
       });
     }
 
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
     const { category, storageLocation } = req.query;
 
-    const filter: any = { userId };
+    const filter: any = buildHouseholdQuery(context);
     if (category) filter.category = category;
     if (storageLocation) filter.storageLocation = storageLocation;
 
@@ -46,7 +52,7 @@ export const getCategories = async (_req: Request, res: Response) => {
 
 export const createItem = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -55,7 +61,12 @@ export const createItem = async (req: Request, res: Response) => {
       });
     }
 
-    const { name, quantity, unit, expirationDate, category, storageLocation, barcode, notes, macros } = req.body;
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const { name, quantity, unit, expirationDate, category, storageLocation, barcode, notes, nutrition, offCategories } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -65,7 +76,7 @@ export const createItem = async (req: Request, res: Response) => {
     }
 
     const newItem = new PantryItem({
-      userId,
+      ...buildItemAttribution(context),
       name,
       quantity: quantity || 1,
       unit,
@@ -74,7 +85,8 @@ export const createItem = async (req: Request, res: Response) => {
       storageLocation: storageLocation || 'Pantry',
       barcode,
       notes,
-      macros
+      nutrition,
+      offCategories
     });
 
     await newItem.save();
@@ -96,7 +108,7 @@ export const createItem = async (req: Request, res: Response) => {
 
 export const updateItem = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -106,7 +118,14 @@ export const updateItem = async (req: Request, res: Response) => {
       });
     }
 
-    const item = await PantryItem.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    // Find item by ID and ensure user has access (either owns it or it's in their household)
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const item = await PantryItem.findOne(query);
 
     if (!item) {
       return res.status(404).json({
@@ -115,7 +134,7 @@ export const updateItem = async (req: Request, res: Response) => {
       });
     }
 
-    const { name, quantity, unit, expirationDate, category, storageLocation, barcode, notes, macros } = req.body;
+    const { name, quantity, unit, expirationDate, category, storageLocation, barcode, notes, nutrition, offCategories } = req.body;
 
     if (name !== undefined) item.name = name;
     if (quantity !== undefined) item.quantity = quantity;
@@ -125,7 +144,8 @@ export const updateItem = async (req: Request, res: Response) => {
     if (storageLocation !== undefined) item.storageLocation = storageLocation;
     if (barcode !== undefined) item.barcode = barcode;
     if (notes !== undefined) item.notes = notes;
-    if (macros !== undefined) item.macros = macros;
+    if (nutrition !== undefined) item.nutrition = nutrition;
+    if (offCategories !== undefined) item.offCategories = offCategories;
 
     await item.save();
 
@@ -146,7 +166,7 @@ export const updateItem = async (req: Request, res: Response) => {
 
 export const deleteItem = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || req.user?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -156,7 +176,13 @@ export const deleteItem = async (req: Request, res: Response) => {
       });
     }
 
-    const item = await PantryItem.findOneAndDelete({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const item = await PantryItem.findOneAndDelete(query);
 
     if (!item) {
       return res.status(404).json({

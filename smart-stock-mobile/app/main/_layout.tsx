@@ -59,6 +59,13 @@ export default function MainLayout() {
           headerShown: false,
         }}
       />
+
+      <Stack.Screen
+        name="household"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

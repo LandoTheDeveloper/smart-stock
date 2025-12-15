@@ -27,6 +27,7 @@ type MealPlan = {
   recipe: Recipe;
   completed: boolean;
   notes?: string;
+  createdByName?: string;
 };
 
 type SavedRecipe = {
@@ -489,9 +490,16 @@ export default function MealPlanner() {
                         key={meal._id}
                         className={`meal-item ${meal.completed ? 'completed' : ''}`}
                         onClick={() => handleToggleCompleted(meal._id)}
-                        title={`${meal.recipe.title} - Click to toggle completed`}
+                        title={`${meal.recipe.title}${meal.createdByName ? ` by ${meal.createdByName}` : ''} - Click to toggle completed`}
                       >
-                        <span className="meal-title">{meal.recipe.title}</span>
+                        <div style={{ flex: 1 }}>
+                          <span className="meal-title">{meal.recipe.title}</span>
+                          {meal.createdByName && (
+                            <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', marginTop: 2 }}>
+                              by {meal.createdByName}
+                            </span>
+                          )}
+                        </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

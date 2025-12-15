@@ -7,6 +7,9 @@ export interface IIngredient {
 
 export interface ISavedRecipe extends Document {
   userId: mongoose.Types.ObjectId;
+  householdId?: mongoose.Types.ObjectId;
+  createdByUserId?: mongoose.Types.ObjectId;
+  createdByName?: string;
   title: string;
   minutes: number;
   servings: number;
@@ -39,6 +42,19 @@ const savedRecipeSchema = new Schema<ISavedRecipe>(
       ref: 'User',
       required: true,
       index: true
+    },
+    householdId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Household',
+      index: true
+    },
+    createdByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    createdByName: {
+      type: String,
+      trim: true
     },
     title: {
       type: String,
@@ -92,5 +108,6 @@ const savedRecipeSchema = new Schema<ISavedRecipe>(
 
 savedRecipeSchema.index({ userId: 1, isFavorite: 1 });
 savedRecipeSchema.index({ userId: 1, title: 1 });
+savedRecipeSchema.index({ householdId: 1, isFavorite: 1 });
 
 export default mongoose.model<ISavedRecipe>('SavedRecipe', savedRecipeSchema);

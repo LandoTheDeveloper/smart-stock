@@ -35,6 +35,7 @@ interface Recipe {
   steps: string[];
   isFavorite?: boolean;
   isCustom?: boolean;
+  createdByName?: string;
 }
 
 interface RecipeHistoryItem {
@@ -238,9 +239,14 @@ export default function RecipesScreen() {
           onPress={() => setExpandedRecipe(isExpanded ? null : recipeId)}
         >
           <View style={styles.recipeTitleRow}>
-            <Text style={styles.recipeTitle} numberOfLines={2}>
-              {recipe.title}
-            </Text>
+            <View style={styles.titleAndAuthor}>
+              <Text style={styles.recipeTitle} numberOfLines={2}>
+                {recipe.title}
+              </Text>
+              {recipe.createdByName && (
+                <Text style={styles.recipeAuthor}>by {recipe.createdByName}</Text>
+              )}
+            </View>
             <Ionicons
               name={isExpanded ? "chevron-up" : "chevron-down"}
               size={20}
@@ -742,12 +748,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+  titleAndAuthor: {
+    flex: 1,
+    marginRight: 8,
+  },
   recipeTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: "#333",
-    flex: 1,
-    marginRight: 8,
+  },
+  recipeAuthor: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
   },
   recipeMeta: {
     flexDirection: "row",

@@ -21,6 +21,9 @@ export interface IRecipeHistoryItem {
 
 export interface IRecipeHistory extends Document {
   userId: mongoose.Types.ObjectId;
+  householdId?: mongoose.Types.ObjectId;
+  createdByUserId?: mongoose.Types.ObjectId;
+  createdByName?: string;
   prompt?: string;
   recipes: IRecipeHistoryItem[];
   createdAt: Date;
@@ -59,6 +62,19 @@ const recipeHistorySchema = new Schema<IRecipeHistory>(
       required: true,
       index: true
     },
+    householdId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Household',
+      index: true
+    },
+    createdByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    createdByName: {
+      type: String,
+      trim: true
+    },
     prompt: {
       type: String,
       trim: true
@@ -71,5 +87,6 @@ const recipeHistorySchema = new Schema<IRecipeHistory>(
 );
 
 recipeHistorySchema.index({ userId: 1, createdAt: -1 });
+recipeHistorySchema.index({ householdId: 1, createdAt: -1 });
 
 export default mongoose.model<IRecipeHistory>('RecipeHistory', recipeHistorySchema);

@@ -1,6 +1,76 @@
 import { useMemo, useState, useEffect } from 'react';
 import { api } from '../lib/api';
 
+// Shelf life utilities
+const PRODUCT_SHELF_LIVES: Record<string, number> = {
+  'milk': 7, 'whole milk': 7, 'skim milk': 7, '2% milk': 7, 'almond milk': 10, 'oat milk': 10,
+  'yogurt': 14, 'greek yogurt': 14, 'butter': 90, 'cream cheese': 21, 'cheese': 30,
+  'eggs': 28, 'bread': 7, 'bagels': 5, 'tortillas': 14,
+  'apples': 28, 'oranges': 21, 'bananas': 5, 'grapes': 7, 'strawberries': 5, 'blueberries': 10,
+  'lettuce': 7, 'spinach': 5, 'carrots': 21, 'broccoli': 7, 'tomatoes': 7, 'onions': 30,
+  'chicken': 2, 'beef': 3, 'pork': 3, 'bacon': 7, 'fish': 2, 'salmon': 2, 'shrimp': 2,
+  'ketchup': 180, 'mustard': 365, 'mayonnaise': 60, 'salsa': 14,
+  'peanut butter': 90, 'jelly': 30, 'cereal': 180, 'rice': 365, 'pasta': 365,
+};
+
+const CATEGORY_TO_SHELF_LIFE: Record<string, number> = {
+  'Dairy': 14, 'Produce': 7, 'Meat': 3, 'Seafood': 2, 'Bakery': 5,
+  'Frozen': 180, 'Canned Goods': 730, 'Grains & Pasta': 365,
+  'Snacks': 60, 'Beverages': 30, 'Condiments': 90, 'Spices': 365, 'Other': 30
+};
+
+function getSuggestedExpirationDate(productName?: string, category?: string): string {
+  let shelfLifeDays: number | null = null;
+
+  if (productName) {
+    const normalized = productName.toLowerCase().trim();
+    if (PRODUCT_SHELF_LIVES[normalized]) {
+      shelfLifeDays = PRODUCT_SHELF_LIVES[normalized];
+    } else {
+      for (const [product, days] of Object.entries(PRODUCT_SHELF_LIVES)) {
+        if (normalized.includes(product) || product.includes(normalized)) {
+          shelfLifeDays = days;
+          break;
+        }
+      }
+    }
+  }
+
+  if (shelfLifeDays === null && category && CATEGORY_TO_SHELF_LIFE[category]) {
+    shelfLifeDays = CATEGORY_TO_SHELF_LIFE[category];
+  }
+
+  if (shelfLifeDays === null) {
+    shelfLifeDays = 14; // Default
+  }
+
+  const expirationDate = new Date();
+  expirationDate.setDate(expirationDate.getDate() + shelfLifeDays);
+  return expirationDate.toISOString().split('T')[0];
+}
+
+// Helper functions for nutrition score colors
+function getNutriScoreColor(grade: string): string {
+  switch (grade.toLowerCase()) {
+    case 'a': return '#038141';
+    case 'b': return '#85bb2f';
+    case 'c': return '#fecb02';
+    case 'd': return '#ee8100';
+    case 'e': return '#e63e11';
+    default: return '#888';
+  }
+}
+
+function getNovaColor(group: number): string {
+  switch (group) {
+    case 1: return '#038141';
+    case 2: return '#85bb2f';
+    case 3: return '#fecb02';
+    case 4: return '#e63e11';
+    default: return '#888';
+  }
+}
+
 const CATEGORIES = [
   'Dairy',
   'Produce',
@@ -21,6 +91,22 @@ const STORAGE_LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Counter'];
 
 const UNITS = ['count', 'g', 'kg', 'ml', 'L', 'oz', 'lb', 'cups', 'tbsp', 'tsp'];
 
+type Nutrition = {
+  kcal?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  saturatedFat?: number;
+  serving?: string;
+  servingSize?: number;
+  servingUnit?: string;
+  nutriScore?: string;
+  novaGroup?: number;
+};
+
 type PantryItem = {
   _id: string;
   name: string;
@@ -29,13 +115,7 @@ type PantryItem = {
   expirationDate?: string;
   category?: string;
   storageLocation?: string;
-  macros?: {
-    kcal: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    serving: string;
-  };
+  nutrition?: Nutrition;
 };
 
 type EditState = Record<string, { quantity: number; expirationDate: string }>;
@@ -435,6 +515,40 @@ export default function Pantry() {
                   <div className='cell-title'>{it.name}</div>
                   <div className='cell-sub'>
                     {it.category || 'Uncategorized'}
+                    {it.nutrition && (it.nutrition.kcal != null || it.nutrition.nutriScore) && (
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>
+                        {it.nutrition.nutriScore && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '3px',
+                            backgroundColor: getNutriScoreColor(it.nutrition.nutriScore),
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: '0.6rem',
+                            marginRight: '0.35rem',
+                            verticalAlign: 'middle'
+                          }}>
+                            {it.nutrition.nutriScore.toUpperCase()}
+                          </span>
+                        )}
+                        {it.nutrition.kcal != null && (
+                          <span style={{ marginRight: '0.35rem' }}>{Math.round(it.nutrition.kcal)} kcal</span>
+                        )}
+                        {it.nutrition.protein != null && (
+                          <span style={{ marginRight: '0.35rem' }}><span style={{ fontWeight: 600, color: '#e74c3c' }}>{it.nutrition.protein.toFixed(0)}g</span> P</span>
+                        )}
+                        {it.nutrition.carbs != null && (
+                          <span style={{ marginRight: '0.35rem' }}><span style={{ fontWeight: 600, color: '#3498db' }}>{it.nutrition.carbs.toFixed(0)}g</span> C</span>
+                        )}
+                        {it.nutrition.fat != null && (
+                          <span><span style={{ fontWeight: 600, color: '#f39c12' }}>{it.nutrition.fat.toFixed(0)}g</span> F</span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -520,12 +634,12 @@ export default function Pantry() {
                       >
                         Edit
                       </button>
-                      {it.macros && (
+                      {it.nutrition && (
                         <button
                           className='btn-outline btn-sm'
                           onClick={() => setMacroItem(it)}
                         >
-                          Macros
+                          Nutrition
                         </button>
                       )}
                     </>
@@ -589,9 +703,27 @@ export default function Pantry() {
                       className='input'
                       type='text'
                       value={newItem.name}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({ ...prev, name: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setNewItem((prev) => {
+                          // Auto-suggest expiration date if not manually set
+                          const suggestedDate = getSuggestedExpirationDate(name, prev.category);
+                          return {
+                            ...prev,
+                            name,
+                            expirationDate: prev.expirationDate || suggestedDate
+                          };
+                        });
+                      }}
+                      onBlur={() => {
+                        // Also update on blur if no expiration date set
+                        if (!newItem.expirationDate && newItem.name) {
+                          setNewItem((prev) => ({
+                            ...prev,
+                            expirationDate: getSuggestedExpirationDate(prev.name, prev.category)
+                          }));
+                        }
+                      }}
                       placeholder='e.g., Chicken Breast'
                       required
                     />
@@ -639,9 +771,18 @@ export default function Pantry() {
                       <select
                         className='input'
                         value={newItem.category}
-                        onChange={(e) =>
-                          setNewItem((prev) => ({ ...prev, category: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          const category = e.target.value;
+                          setNewItem((prev) => {
+                            // Recalculate expiration date when category changes
+                            const suggestedDate = getSuggestedExpirationDate(prev.name, category);
+                            return {
+                              ...prev,
+                              category,
+                              expirationDate: suggestedDate
+                            };
+                          });
+                        }}
                       >
                         <option value=''>Select category</option>
                         {CATEGORIES.map(cat => (
@@ -701,11 +842,11 @@ export default function Pantry() {
         </div>
       )}
 
-      {macroItem && macroItem.macros && (
+      {macroItem && macroItem.nutrition && (
         <div className='modal-backdrop' onClick={() => setMacroItem(null)}>
           <div className='modal' onClick={(e) => e.stopPropagation()}>
             <div className='modal-header'>
-              <div className='modal-title'>Macros — {macroItem.name}</div>
+              <div className='modal-title'>Nutrition — {macroItem.name}</div>
               <button
                 className='btn-outline'
                 onClick={() => setMacroItem(null)}
@@ -714,29 +855,90 @@ export default function Pantry() {
               </button>
             </div>
             <div className='modal-body'>
+              {/* Nutri-Score and NOVA badges */}
+              {(macroItem.nutrition.nutriScore || macroItem.nutrition.novaGroup) && (
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                  {macroItem.nutrition.nutriScore && (
+                    <div style={{
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      backgroundColor: getNutriScoreColor(macroItem.nutrition.nutriScore),
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.9rem'
+                    }}>
+                      Nutri-Score: {macroItem.nutrition.nutriScore.toUpperCase()}
+                    </div>
+                  )}
+                  {macroItem.nutrition.novaGroup && (
+                    <div style={{
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      backgroundColor: getNovaColor(macroItem.nutrition.novaGroup),
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.9rem'
+                    }}>
+                      NOVA: {macroItem.nutrition.novaGroup}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className='macro-grid'>
-                <div className='macro-box'>
-                  <div className='macro-label'>Serving</div>
-                  <div className='macro-value'>{macroItem.macros.serving}</div>
-                </div>
-                <div className='macro-box'>
-                  <div className='macro-label'>Calories</div>
-                  <div className='macro-value'>{macroItem.macros.kcal}</div>
-                </div>
-                <div className='macro-box'>
-                  <div className='macro-label'>Protein</div>
-                  <div className='macro-value'>
-                    {macroItem.macros.protein} g
+                {macroItem.nutrition.serving && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Serving</div>
+                    <div className='macro-value'>{macroItem.nutrition.serving}</div>
                   </div>
-                </div>
-                <div className='macro-box'>
-                  <div className='macro-label'>Carbs</div>
-                  <div className='macro-value'>{macroItem.macros.carbs} g</div>
-                </div>
-                <div className='macro-box'>
-                  <div className='macro-label'>Fat</div>
-                  <div className='macro-value'>{macroItem.macros.fat} g</div>
-                </div>
+                )}
+                {macroItem.nutrition.kcal != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Calories</div>
+                    <div className='macro-value'>{Math.round(macroItem.nutrition.kcal)}</div>
+                  </div>
+                )}
+                {macroItem.nutrition.protein != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Protein</div>
+                    <div className='macro-value'>{macroItem.nutrition.protein.toFixed(1)} g</div>
+                  </div>
+                )}
+                {macroItem.nutrition.carbs != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Carbs</div>
+                    <div className='macro-value'>{macroItem.nutrition.carbs.toFixed(1)} g</div>
+                  </div>
+                )}
+                {macroItem.nutrition.fat != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Fat</div>
+                    <div className='macro-value'>{macroItem.nutrition.fat.toFixed(1)} g</div>
+                  </div>
+                )}
+                {macroItem.nutrition.fiber != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Fiber</div>
+                    <div className='macro-value'>{macroItem.nutrition.fiber.toFixed(1)} g</div>
+                  </div>
+                )}
+                {macroItem.nutrition.sugar != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Sugar</div>
+                    <div className='macro-value'>{macroItem.nutrition.sugar.toFixed(1)} g</div>
+                  </div>
+                )}
+                {macroItem.nutrition.saturatedFat != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Sat. Fat</div>
+                    <div className='macro-value'>{macroItem.nutrition.saturatedFat.toFixed(1)} g</div>
+                  </div>
+                )}
+                {macroItem.nutrition.sodium != null && (
+                  <div className='macro-box'>
+                    <div className='macro-label'>Sodium</div>
+                    <div className='macro-value'>{Math.round(macroItem.nutrition.sodium)} mg</div>
+                  </div>
+                )}
               </div>
             </div>
             <div className='modal-footer'>

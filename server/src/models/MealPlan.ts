@@ -20,6 +20,9 @@ export interface IRecipe {
 
 export interface IMealPlan extends Document {
   userId: mongoose.Types.ObjectId;
+  householdId?: mongoose.Types.ObjectId;
+  createdByUserId?: mongoose.Types.ObjectId;
+  createdByName?: string;
   date: Date;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   recipe: IRecipe;
@@ -61,6 +64,19 @@ const mealPlanSchema = new Schema<IMealPlan>(
       required: [true, 'User ID is required'],
       index: true
     },
+    householdId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Household',
+      index: true
+    },
+    createdByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    createdByName: {
+      type: String,
+      trim: true
+    },
     date: {
       type: Date,
       required: [true, 'Date is required'],
@@ -91,5 +107,6 @@ const mealPlanSchema = new Schema<IMealPlan>(
 
 mealPlanSchema.index({ userId: 1, date: 1 });
 mealPlanSchema.index({ userId: 1, date: 1, mealType: 1 });
+mealPlanSchema.index({ householdId: 1, date: 1 });
 
 export default mongoose.model<IMealPlan>('MealPlan', mealPlanSchema);

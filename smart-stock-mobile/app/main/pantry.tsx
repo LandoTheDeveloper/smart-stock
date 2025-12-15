@@ -57,6 +57,68 @@ type Category = (typeof CATEGORIES)[number];
 type StorageLocation = (typeof STORAGE_LOCATIONS)[number];
 type Unit = (typeof UNITS)[number];
 
+// Shelf life utilities for auto-suggesting expiration dates
+const PRODUCT_SHELF_LIVES: Record<string, number> = {
+  'milk': 7, 'whole milk': 7, 'skim milk': 7, '2% milk': 7, 'almond milk': 10, 'oat milk': 10,
+  'yogurt': 14, 'greek yogurt': 14, 'butter': 90, 'cream cheese': 21, 'cheese': 30,
+  'eggs': 28, 'bread': 7, 'bagels': 5, 'tortillas': 14,
+  'apples': 28, 'oranges': 21, 'bananas': 5, 'grapes': 7, 'strawberries': 5, 'blueberries': 10,
+  'lettuce': 7, 'spinach': 5, 'carrots': 21, 'broccoli': 7, 'tomatoes': 7, 'onions': 30,
+  'chicken': 2, 'beef': 3, 'pork': 3, 'bacon': 7, 'fish': 2, 'salmon': 2, 'shrimp': 2,
+  'ketchup': 180, 'mustard': 365, 'mayonnaise': 60, 'salsa': 14,
+  'peanut butter': 90, 'jelly': 30, 'cereal': 180, 'rice': 365, 'pasta': 365,
+};
+
+const CATEGORY_TO_SHELF_LIFE: Record<string, number> = {
+  'Dairy': 14, 'Produce': 7, 'Meat': 3, 'Seafood': 2, 'Bakery': 5,
+  'Frozen': 180, 'Canned Goods': 730, 'Grains & Pasta': 365,
+  'Snacks': 60, 'Beverages': 30, 'Condiments': 90, 'Spices': 365, 'Other': 30
+};
+
+function getSuggestedExpirationDate(productName?: string, category?: string): string {
+  let shelfLifeDays: number | null = null;
+
+  if (productName) {
+    const normalized = productName.toLowerCase().trim();
+    if (PRODUCT_SHELF_LIVES[normalized]) {
+      shelfLifeDays = PRODUCT_SHELF_LIVES[normalized];
+    } else {
+      for (const [product, days] of Object.entries(PRODUCT_SHELF_LIVES)) {
+        if (normalized.includes(product) || product.includes(normalized)) {
+          shelfLifeDays = days;
+          break;
+        }
+      }
+    }
+  }
+
+  if (shelfLifeDays === null && category && CATEGORY_TO_SHELF_LIFE[category]) {
+    shelfLifeDays = CATEGORY_TO_SHELF_LIFE[category];
+  }
+
+  if (shelfLifeDays === null) {
+    shelfLifeDays = 14; // Default
+  }
+
+  const expirationDate = new Date();
+  expirationDate.setDate(expirationDate.getDate() + shelfLifeDays);
+  return expirationDate.toISOString().split('T')[0];
+}
+
+interface Nutrition {
+  kcal?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  saturatedFat?: number;
+  serving?: string;
+  nutriScore?: string;
+  novaGroup?: number;
+}
+
 interface PantryItem {
   _id: string;
   name: string;
@@ -67,9 +129,22 @@ interface PantryItem {
   storageLocation?: StorageLocation;
   barcode?: string;
   notes?: string;
+  nutrition?: Nutrition;
 }
 
 const BOTTOM_BAR_HEIGHT = 95;
+
+// Helper functions for nutrition score colors
+function getNutriScoreColor(grade: string): string {
+  switch (grade.toLowerCase()) {
+    case 'a': return '#038141';
+    case 'b': return '#85bb2f';
+    case 'c': return '#fecb02';
+    case 'd': return '#ee8100';
+    case 'e': return '#e63e11';
+    default: return '#888';
+  }
+}
 
 export default function PantryScreen() {
   const router = useRouter();
@@ -365,6 +440,34 @@ export default function PantryScreen() {
                         <Text style={styles.metaText}> • {item.storageLocation}</Text>
                       )}
                     </View>
+                    {/* Nutrition display */}
+                    {item.nutrition && (item.nutrition.kcal != null || item.nutrition.nutriScore) && (
+                      <View style={styles.nutritionRow}>
+                        {item.nutrition.nutriScore && (
+                          <View style={[styles.nutriScoreBadge, { backgroundColor: getNutriScoreColor(item.nutrition.nutriScore) }]}>
+                            <Text style={styles.nutriScoreText}>{item.nutrition.nutriScore.toUpperCase()}</Text>
+                          </View>
+                        )}
+                        {item.nutrition.kcal != null && (
+                          <Text style={styles.macroText}>{Math.round(item.nutrition.kcal)} kcal</Text>
+                        )}
+                        {item.nutrition.protein != null && (
+                          <Text style={styles.macroText}>
+                            <Text style={{ color: '#e74c3c', fontWeight: '600' }}>{item.nutrition.protein.toFixed(0)}g</Text> P
+                          </Text>
+                        )}
+                        {item.nutrition.carbs != null && (
+                          <Text style={styles.macroText}>
+                            <Text style={{ color: '#3498db', fontWeight: '600' }}>{item.nutrition.carbs.toFixed(0)}g</Text> C
+                          </Text>
+                        )}
+                        {item.nutrition.fat != null && (
+                          <Text style={styles.macroText}>
+                            <Text style={{ color: '#f39c12', fontWeight: '600' }}>{item.nutrition.fat.toFixed(0)}g</Text> F
+                          </Text>
+                        )}
+                      </View>
+                    )}
                   </View>
                   <View style={styles.itemRight}>
                     <View style={styles.quantityControls}>
@@ -432,7 +535,24 @@ export default function PantryScreen() {
               <TextInput
                 style={styles.input}
                 value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                onChangeText={(text) => {
+                  // Auto-suggest expiration date based on name
+                  const suggestedDate = getSuggestedExpirationDate(text, formData.category);
+                  setFormData({
+                    ...formData,
+                    name: text,
+                    expirationDate: formData.expirationDate || suggestedDate
+                  });
+                }}
+                onBlur={() => {
+                  // Update expiration date on blur if not set
+                  if (!formData.expirationDate && formData.name) {
+                    setFormData({
+                      ...formData,
+                      expirationDate: getSuggestedExpirationDate(formData.name, formData.category)
+                    });
+                  }
+                }}
                 placeholder="Item name"
               />
 
@@ -474,7 +594,11 @@ export default function PantryScreen() {
                   <TouchableOpacity
                     key={cat}
                     style={[styles.chip, formData.category === cat && styles.chipActive]}
-                    onPress={() => setFormData({ ...formData, category: cat })}
+                    onPress={() => {
+                      // Recalculate expiration date when category changes
+                      const suggestedDate = getSuggestedExpirationDate(formData.name, cat);
+                      setFormData({ ...formData, category: cat, expirationDate: suggestedDate });
+                    }}
                   >
                     <Text style={[styles.chipText, formData.category === cat && styles.chipTextActive]}>
                       {cat}
@@ -588,8 +712,26 @@ const styles = StyleSheet.create({
   itemMain: { flex: 1, flexDirection: "row", alignItems: "center" },
   itemInfo: { flex: 1 },
   itemName: { fontSize: 16, fontWeight: "600", color: "#333" },
-  itemMeta: { flexDirection: "row", marginTop: 4 },
-  metaText: { fontSize: 12, color: "#888" },
+  itemMeta: { flexDirection: "row", marginTop: 2, flexWrap: "wrap" },
+  metaText: { fontSize: 11, color: "#888" },
+  nutritionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  nutriScoreBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  nutriScoreText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  macroText: { fontSize: 11, color: "#888" },
+  macroValue: { fontSize: 12, fontWeight: "700", color: "#333" },
+  macroLabel: { fontSize: 9, color: "#888", marginTop: -1 },
   itemRight: { alignItems: "flex-end" },
   quantityControls: { flexDirection: "row", alignItems: "center" },
   qtyButton: {

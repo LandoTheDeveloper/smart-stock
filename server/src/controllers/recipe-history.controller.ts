@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import RecipeHistory from '../models/RecipeHistory';
+import { getHouseholdContext, buildHouseholdQuery } from '../utils/household.utils';
 
 export const getHistory = async (req: Request, res: Response) => {
   try {
@@ -12,7 +13,12 @@ export const getHistory = async (req: Request, res: Response) => {
       });
     }
 
-    const history = await RecipeHistory.find({ userId })
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const history = await RecipeHistory.find(buildHouseholdQuery(context))
       .sort({ createdAt: -1 })
       .limit(50);
 
@@ -42,7 +48,13 @@ export const deleteHistoryItem = async (req: Request, res: Response) => {
       });
     }
 
-    const item = await RecipeHistory.findOneAndDelete({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const item = await RecipeHistory.findOneAndDelete(query);
 
     if (!item) {
       return res.status(404).json({
@@ -76,7 +88,12 @@ export const clearHistory = async (req: Request, res: Response) => {
       });
     }
 
-    await RecipeHistory.deleteMany({ userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    await RecipeHistory.deleteMany(buildHouseholdQuery(context));
 
     res.json({
       success: true,

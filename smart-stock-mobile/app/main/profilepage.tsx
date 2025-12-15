@@ -72,6 +72,15 @@ export default function ProfilePage() {
         ))}
       </View>
 
+      {/* Household Button */}
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => router.push("/main/household")}
+      >
+        <Ionicons name="people-outline" size={20} color="#2e7d32" style={{ marginRight: 8 }} />
+        <Text style={styles.settingsText}>Household</Text>
+      </TouchableOpacity>
+
       {/* Recipe Preferences Button */}
       <TouchableOpacity
         style={styles.settingsButton}

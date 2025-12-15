@@ -65,6 +65,69 @@ type Category = (typeof CATEGORIES)[number];
 type StorageLocation = (typeof STORAGE_LOCATIONS)[number];
 type Unit = (typeof UNITS)[number];
 
+// Shelf life utility functions (matching server implementation)
+const PRODUCT_SHELF_LIVES: Record<string, number> = {
+  'milk': 7, 'whole milk': 7, 'skim milk': 7, '2% milk': 7, 'almond milk': 10, 'oat milk': 10,
+  'yogurt': 14, 'greek yogurt': 14, 'butter': 90, 'cream cheese': 21, 'cheese': 30,
+  'eggs': 28, 'bread': 7, 'bagels': 5, 'tortillas': 14,
+  'apples': 28, 'oranges': 21, 'bananas': 5, 'grapes': 7, 'strawberries': 5, 'blueberries': 10,
+  'lettuce': 7, 'spinach': 5, 'carrots': 21, 'broccoli': 7, 'tomatoes': 7, 'onions': 30,
+  'chicken': 2, 'beef': 3, 'pork': 3, 'bacon': 7, 'fish': 2, 'salmon': 2, 'shrimp': 2,
+  'ketchup': 180, 'mustard': 365, 'mayonnaise': 60, 'salsa': 14,
+  'peanut butter': 90, 'jelly': 30, 'cereal': 180, 'rice': 365, 'pasta': 365,
+};
+
+const CATEGORY_SHELF_LIVES: Record<string, number> = {
+  'dairy': 14, 'milks': 7, 'yogurts': 14, 'cheeses': 30, 'eggs': 28,
+  'breads': 7, 'bread': 7, 'bakery': 5, 'pastries': 3,
+  'fruits': 7, 'berries': 5, 'citrus-fruits': 21,
+  'vegetables': 10, 'leafy-vegetables': 5, 'root-vegetables': 21,
+  'meats': 3, 'meat': 3, 'poultry': 2, 'beef': 3, 'pork': 3, 'sausages': 5, 'bacon': 7,
+  'seafood': 2, 'fish': 2, 'shellfish': 2,
+  'beverages': 30, 'juices': 7, 'sodas': 90,
+  'condiments': 90, 'sauces': 30, 'dressings': 60,
+  'snacks': 60, 'chips': 60, 'crackers': 90, 'nuts': 180,
+  'grains': 365, 'pasta': 365, 'rice': 365, 'cereals': 180,
+  'canned-foods': 730, 'canned': 730,
+  'frozen': 180, 'frozen-foods': 180,
+};
+
+const DEFAULT_SHELF_LIFE = 14;
+
+function getShelfLifeByName(productName: string): number | null {
+  const normalized = productName.toLowerCase().trim();
+  if (PRODUCT_SHELF_LIVES[normalized]) return PRODUCT_SHELF_LIVES[normalized];
+  for (const [product, days] of Object.entries(PRODUCT_SHELF_LIVES)) {
+    if (normalized.includes(product) || product.includes(normalized)) return days;
+  }
+  return null;
+}
+
+function getShelfLifeByCategories(categories: string[]): number | null {
+  for (const category of categories) {
+    const categoryName = category.includes(':') ? category.split(':')[1] : category;
+    const normalized = categoryName.toLowerCase().trim();
+    if (CATEGORY_SHELF_LIVES[normalized]) return CATEGORY_SHELF_LIVES[normalized];
+    for (const [cat, days] of Object.entries(CATEGORY_SHELF_LIVES)) {
+      if (normalized.includes(cat) || cat.includes(normalized)) return days;
+    }
+  }
+  return null;
+}
+
+function getSuggestedExpirationDate(productName?: string, categories?: string[]): string {
+  let shelfLifeDays: number | null = null;
+  if (productName) shelfLifeDays = getShelfLifeByName(productName);
+  if (shelfLifeDays === null && categories && categories.length > 0) {
+    shelfLifeDays = getShelfLifeByCategories(categories);
+  }
+  if (shelfLifeDays === null) shelfLifeDays = DEFAULT_SHELF_LIFE;
+
+  const expirationDate = new Date();
+  expirationDate.setDate(expirationDate.getDate() + shelfLifeDays);
+  return expirationDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+}
+
 interface ProductData {
   product_name?: string;
   brands?: string;
@@ -225,11 +288,16 @@ export default function ScanScreen() {
         setProductData(data.product);
         // Pre-fill form data
         const product = data.product as ProductData;
+        // Auto-calculate expiration date from product name and categories
+        const suggestedExpiration = getSuggestedExpirationDate(
+          product.product_name,
+          product.categories_tags
+        );
         setFormData({
           name: product.product_name || "",
           quantity: "1",
           unit: product.quantity || "",
-          expirationDate: "",
+          expirationDate: suggestedExpiration,
           category: guessCategory(product),
           storageLocation: "Pantry",
         });
@@ -285,12 +353,18 @@ export default function ScanScreen() {
 
     setAddingToPantry(true);
     try {
-      const macros = productData?.nutriments ? {
-        kcal: productData.nutriments["energy-kcal_100g"] || 0,
-        protein: productData.nutriments.proteins_100g || 0,
-        carbs: productData.nutriments.carbohydrates_100g || 0,
-        fat: productData.nutriments.fat_100g || 0,
+      const nutrition = productData?.nutriments ? {
+        kcal: productData.nutriments["energy-kcal_100g"] ?? undefined,
+        protein: productData.nutriments.proteins_100g ?? undefined,
+        carbs: productData.nutriments.carbohydrates_100g ?? undefined,
+        fat: productData.nutriments.fat_100g ?? undefined,
+        fiber: productData.nutriments.fiber_100g ?? undefined,
+        sugar: productData.nutriments.sugars_100g ?? undefined,
+        sodium: productData.nutriments.sodium_100g ?? undefined,
+        saturatedFat: productData.nutriments["saturated-fat_100g"] ?? undefined,
         serving: "100g",
+        nutriScore: productData.nutriscore_grade ?? undefined,
+        novaGroup: productData.nova_group ?? undefined,
       } : undefined;
 
       const payload = {
@@ -301,7 +375,8 @@ export default function ScanScreen() {
         category: formData.category || undefined,
         storageLocation: formData.storageLocation,
         barcode: scannedBarcode,
-        macros,
+        nutrition,
+        offCategories: productData?.categories_tags || undefined,
       };
 
       await api.post("/api/pantry", payload);

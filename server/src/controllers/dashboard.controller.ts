@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import PantryItem from '../models/PantryItem';
+import { getHouseholdContext, buildHouseholdQuery } from '../utils/household.utils';
 
 export const getOverview = async (req: Request, res: Response) => {
   try {
@@ -12,11 +13,16 @@ export const getOverview = async (req: Request, res: Response) => {
       });
     }
 
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
     const now = new Date();
     const fiveDaysFromNow = new Date();
     fiveDaysFromNow.setDate(now.getDate() + 5);
 
-    const allItems = await PantryItem.find({ userId }).sort({ lastUpdated: -1 });
+    const allItems = await PantryItem.find(buildHouseholdQuery(context)).sort({ lastUpdated: -1 });
 
     const lowStockItems = allItems.filter(item => item.quantity <= 2);
     const expiringSoonItems = allItems.filter(item => {

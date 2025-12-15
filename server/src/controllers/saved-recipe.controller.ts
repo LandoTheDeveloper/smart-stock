@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import SavedRecipe from '../models/SavedRecipe';
+import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '../utils/household.utils';
 
 export const getAllRecipes = async (req: Request, res: Response) => {
   try {
@@ -12,9 +13,14 @@ export const getAllRecipes = async (req: Request, res: Response) => {
       });
     }
 
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
     const { favorites, custom } = req.query;
 
-    const filter: any = { userId };
+    const filter: any = { ...buildHouseholdQuery(context) };
     if (favorites === 'true') filter.isFavorite = true;
     if (custom === 'true') filter.isCustom = true;
 
@@ -46,7 +52,13 @@ export const getRecipeById = async (req: Request, res: Response) => {
       });
     }
 
-    const recipe = await SavedRecipe.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const recipe = await SavedRecipe.findOne(query);
 
     if (!recipe) {
       return res.status(404).json({
@@ -80,6 +92,11 @@ export const saveRecipe = async (req: Request, res: Response) => {
       });
     }
 
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
     const { title, minutes, servings, tags, kcal, protein, carbs, fat, ingredients, steps, isCustom, notes } = req.body;
 
     if (!title || !ingredients || !steps) {
@@ -89,21 +106,21 @@ export const saveRecipe = async (req: Request, res: Response) => {
       });
     }
 
-    // Check for duplicate recipe by title (case-insensitive)
+    // Check for duplicate recipe by title (case-insensitive) within household/user context
     const existingRecipe = await SavedRecipe.findOne({
-      userId,
+      ...buildHouseholdQuery(context),
       title: { $regex: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
     });
 
     if (existingRecipe) {
       return res.status(409).json({
         success: false,
-        message: 'You already have a recipe with this title saved'
+        message: 'A recipe with this title is already saved'
       });
     }
 
     const recipe = new SavedRecipe({
-      userId,
+      ...buildItemAttribution(context),
       title,
       minutes: minutes || 0,
       servings: servings || 1,
@@ -147,7 +164,13 @@ export const updateRecipe = async (req: Request, res: Response) => {
       });
     }
 
-    const recipe = await SavedRecipe.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const recipe = await SavedRecipe.findOne(query);
 
     if (!recipe) {
       return res.status(404).json({
@@ -199,7 +222,13 @@ export const toggleFavorite = async (req: Request, res: Response) => {
       });
     }
 
-    const recipe = await SavedRecipe.findOne({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const recipe = await SavedRecipe.findOne(query);
 
     if (!recipe) {
       return res.status(404).json({
@@ -238,7 +267,13 @@ export const deleteRecipe = async (req: Request, res: Response) => {
       });
     }
 
-    const recipe = await SavedRecipe.findOneAndDelete({ _id: id, userId });
+    const context = await getHouseholdContext(userId);
+    if (!context) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const query = { _id: id, ...buildHouseholdQuery(context) };
+    const recipe = await SavedRecipe.findOneAndDelete(query);
 
     if (!recipe) {
       return res.status(404).json({
