@@ -39,7 +39,8 @@
           }
         }
       ],
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
