@@ -43,11 +43,11 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@types/react-native": "^0.72.8",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "expo": "^54.0.31",
+    "expo": "^54.0.32",
     "typescript": "~5.9.2"
   },
   "private": true
 }
-

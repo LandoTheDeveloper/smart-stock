@@ -218,7 +218,7 @@ export default function Dashboard() {
 
         <section className='card table-card' style={{ marginBottom: 0 }}>
           <div className='table-header'>
-            <div className='table-title'>Recent Activity</div>
+            <div className='table-title'>Recent </div>
             <div className='table-actions'>
               <input
                 className='input'
