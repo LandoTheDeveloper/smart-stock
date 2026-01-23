@@ -36,7 +36,6 @@ export default function DashboardLayout() {
               style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }}
             />
           </div>
-          <div className='brand-name'>Smart Stock</div>
         </div>
 
         <nav className='nav'>
