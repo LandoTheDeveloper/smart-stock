@@ -87,10 +87,12 @@ export default function Dashboard() {
       <style>{`
         .storage-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          /* Wrap and shrink tiles instead of causing horizontal scroll */
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
           gap: 1rem;
           margin-bottom: 1.5rem;
         }
+
         .storage-card {
           background: var(--bg-secondary);
           border: 1px solid var(--border);
@@ -98,25 +100,30 @@ export default function Dashboard() {
           padding: 1rem;
           text-align: center;
         }
+
         .storage-card .label {
           font-size: 0.85rem;
           color: #6b726d;
           margin-bottom: 0.25rem;
         }
+
         .storage-card .count {
           font-size: 1.5rem;
           font-weight: 600;
         }
+
         .category-list {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
         }
+
         .category-row {
           display: flex;
           align-items: center;
           gap: 0.75rem;
         }
+
         .category-bar {
           flex: 1;
           height: 8px;
@@ -124,37 +131,48 @@ export default function Dashboard() {
           border-radius: 4px;
           overflow: hidden;
         }
+
         .category-bar-fill {
           height: 100%;
           background: var(--primary);
           border-radius: 4px;
         }
+
         .category-label {
           min-width: 100px;
           font-size: 0.85rem;
         }
+
         .category-count {
           min-width: 30px;
           text-align: right;
           font-size: 0.85rem;
           color: #6b726d;
         }
+
+        /* Top Categories + Recent Activity container */
         .dashboard-row {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 1.5rem;
           margin-bottom: 1.5rem;
         }
+
         @media (max-width: 900px) {
-          .storage-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
           .dashboard-row {
+            grid-template-columns: 1fr; /* stack Top Categories and Recent Activity */
+          }
+        }
+
+        @media (max-width: 600px) {
+          /* On very small screens, allow storage tiles to go 1 per row if needed */
+          .storage-grid {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
 
+      {/* Storage tiles */}
       <div className="storage-grid">
         <div className="storage-card">
           <div className="label">Fridge</div>
@@ -174,6 +192,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* KPI tiles */}
       <section className='dash-grid'>
         <div className='card'>
           <div className='card-title'>Low Stock</div>
@@ -192,6 +211,7 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Top Categories + Recent Activity */}
       <div className="dashboard-row">
         <section className='card'>
           <div className='card-title' style={{ marginBottom: '1rem' }}>Top Categories</div>
@@ -218,7 +238,7 @@ export default function Dashboard() {
 
         <section className='card table-card' style={{ marginBottom: 0 }}>
           <div className='table-header'>
-            <div className='table-title'>Recent </div>
+            <div className='table-title'>Recent</div>
             <div className='table-actions'>
               <input
                 className='input'
