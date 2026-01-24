@@ -532,7 +532,10 @@ export default function Pantry() {
                             marginRight: '0.35rem',
                             verticalAlign: 'middle'
                           }}>
-                            {it.nutrition.nutriScore.toUpperCase()}
+                            {
+                            // checks if it is a valid nutriscore, otherwise just outputs for cases like "unknown" or "not applicable"  
+                            ["A", "B", "C", "D", "E"].includes(it.nutrition.nutriScore.toUpperCase()) ? it.nutrition.nutriScore.toUpperCase() : "N"
+                            }
                           </span>
                         )}
                         {it.nutrition.kcal != null && (
