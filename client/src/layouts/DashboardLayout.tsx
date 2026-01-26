@@ -1,29 +1,16 @@
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './dashboard-theme.css';
 import logo from '../assets/SmartStockLogo.png';
 
-const PAGE_TITLES: Record<string, string> = {
-  '/dashboard': 'Overview',
-  '/pantry': 'Pantry',
-  '/recipes': 'Recipes',
-  '/shopping-list': 'Shopping List',
-  '/meal-planner': 'Meal Planner',
-  '/household': 'Household',
-  '/settings': 'Settings'
-};
-
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
-  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     nav('/login', { replace: true });
   };
-
-  const pageTitle = PAGE_TITLES[location.pathname] || 'Dashboard';
 
   return (
     <div className='dash-root'>
@@ -116,20 +103,6 @@ export default function DashboardLayout() {
       </aside>
 
       <main className='dash-main'>
-        <header className='dash-header'>
-          <h1 className='dash-title'>{pageTitle}</h1>
-          <div className='header-actions'>
-            <button className='btn-soft btn-sm' onClick={() => nav('/pantry')}>
-              Pantry
-            </button>
-            <button className='btn-soft btn-sm' onClick={() => nav('/recipes')}>
-              New Recipe
-            </button>
-            <button className='btn-soft btn-sm' onClick={() => nav('/shopping-list')}>
-              Shopping List
-            </button>
-          </div>
-        </header>
         <Outlet />
       </main>
     </div>

@@ -1,5 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
+import axios from 'axios';
 
 type Ingredient = {
   name: string;
@@ -73,6 +74,9 @@ export default function Recipes() {
   const [userPrompt, setUserPrompt] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
 
+  // Abort controller for cancelling recipe generation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Advanced filters
   const [maxTime, setMaxTime] = useState(0);
   const [maxCalories, setMaxCalories] = useState(0);
@@ -128,6 +132,14 @@ export default function Recipes() {
   };
 
   const handleGenerateRecipes = async () => {
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
     setLoading(true);
     setError('');
     try {
@@ -135,7 +147,9 @@ export default function Recipes() {
         userPrompt: userPrompt.trim() || undefined,
       };
 
-      const response = await api.post('/api/generate/recipes', payload);
+      const response = await api.post('/api/generate/recipes', payload, {
+        signal: abortControllerRef.current.signal
+      });
 
       if (response.data.success) {
         setGeneratedRecipes(response.data.recipes);
@@ -143,8 +157,21 @@ export default function Recipes() {
         fetchHistory();
       }
     } catch (err: any) {
+      if (axios.isCancel(err)) {
+        // Request was cancelled by user - don't show error
+        return;
+      }
       setError(err.response?.data?.message || 'Failed to generate recipes');
     } finally {
+      setLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
       setLoading(false);
     }
   };
@@ -580,7 +607,36 @@ export default function Recipes() {
             <>
               {loading && (
                 <div className='card' style={{ padding: 40, textAlign: 'center' }}>
-                  Generating recipes from your pantry inventory...
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                    <div className='loading-spinner' style={{
+                      width: 48,
+                      height: 48,
+                      border: '4px solid var(--border)',
+                      borderTopColor: 'var(--primary)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                        Generating Recipes...
+                      </div>
+                      <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+                        AI is analyzing your pantry and creating personalized recipes. This may take 15-30 seconds.
+                      </div>
+                    </div>
+                    <button
+                      className='btn-outline'
+                      onClick={handleCancelGeneration}
+                      style={{ marginTop: '0.5rem' }}
+                    >
+                      Cancel Generation
+                    </button>
+                  </div>
+                  <style>{`
+                    @keyframes spin {
+                      to { transform: rotate(360deg); }
+                    }
+                  `}</style>
                 </div>
               )}
 

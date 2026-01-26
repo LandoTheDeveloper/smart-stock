@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
+import axios from "axios";
 
 interface Ingredient {
   name: string;
@@ -98,6 +99,9 @@ export default function MealPlannerScreen() {
   const [generatingRecipes, setGeneratingRecipes] = useState(false);
   const [recipePrompt, setRecipePrompt] = useState("");
   const [addMealTab, setAddMealTab] = useState<"favorites" | "generate">("favorites");
+
+  // Abort controller for cancelling recipe generation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Pantry and ingredients modal
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
@@ -184,17 +188,40 @@ export default function MealPlannerScreen() {
   };
 
   const handleGenerateRecipes = async () => {
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
     setGeneratingRecipes(true);
     try {
       const response = await api.post("/api/ai/generate-recipes", {
         userPrompt: recipePrompt.trim() || undefined,
+      }, {
+        signal: abortControllerRef.current.signal
       });
       if (response.data.success) {
         setGeneratedRecipes(response.data.recipes);
       }
     } catch (err: any) {
+      if (axios.isCancel(err)) {
+        // Request was cancelled by user - don't show error
+        return;
+      }
       Alert.alert("Error", err.response?.data?.message || "Failed to generate recipes");
     } finally {
+      setGeneratingRecipes(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
       setGeneratingRecipes(false);
     }
   };
@@ -662,9 +689,19 @@ export default function MealPlannerScreen() {
                   </View>
 
                   {generatingRecipes && (
-                    <View style={styles.centered}>
+                    <View style={styles.generatingContainer}>
                       <ActivityIndicator size="large" color="#2e7d32" />
-                      <Text style={styles.loadingText}>Generating recipes...</Text>
+                      <Text style={styles.generatingTitle}>Generating Recipes...</Text>
+                      <Text style={styles.generatingSubtext}>
+                        AI is analyzing your pantry and creating personalized recipes. This may take 15-30 seconds.
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={handleCancelGeneration}
+                      >
+                        <Ionicons name="close-circle-outline" size={18} color="#d32f2f" />
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
 
@@ -1122,6 +1159,44 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  generatingContainer: {
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: "#f8faf8",
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  generatingTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#2e7d32",
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  generatingSubtext: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  cancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d32f2f",
+    backgroundColor: "#fff",
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#d32f2f",
+    marginLeft: 4,
   },
 
   // Ingredients modal styles

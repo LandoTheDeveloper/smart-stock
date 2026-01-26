@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
+import axios from "axios";
 
 interface Ingredient {
   name: string;
@@ -56,6 +57,9 @@ export default function RecipesScreen() {
   const [generatedRecipes, setGeneratedRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+
+  // Abort controller for cancelling recipe generation
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [userPrompt, setUserPrompt] = useState("");
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
@@ -154,11 +158,21 @@ export default function RecipesScreen() {
   };
 
   const handleGenerateRecipes = async () => {
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
     setGenerating(true);
     setGeneratedRecipes([]);
     try {
       const response = await api.post("/api/ai/generate-recipes", {
         userPrompt: userPrompt.trim() || undefined,
+      }, {
+        signal: abortControllerRef.current.signal
       });
       if (response.data.success) {
         setGeneratedRecipes(response.data.recipes);
@@ -166,12 +180,25 @@ export default function RecipesScreen() {
         Alert.alert("Error", response.data.message || "Failed to generate recipes");
       }
     } catch (error: any) {
+      if (axios.isCancel(error)) {
+        // Request was cancelled by user - don't show error
+        return;
+      }
       console.error("Error generating recipes:", error);
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to generate recipes. Make sure you have items in your pantry."
       );
     } finally {
+      setGenerating(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
       setGenerating(false);
     }
   };
@@ -462,21 +489,33 @@ export default function RecipesScreen() {
                 multiline
                 numberOfLines={2}
               />
-              <TouchableOpacity
-                style={[styles.generateButton, generating && styles.buttonDisabled]}
-                onPress={handleGenerateRecipes}
-                disabled={generating}
-              >
-                {generating ? (
-                  <View style={styles.generatingRow}>
-                    <ActivityIndicator size="small" color="#fff" /><Text style={[styles.generateButtonText, styles.generatingText]}>Generating...</Text>
+              {generating ? (
+                <View style={styles.generatingContainer}>
+                  <View style={styles.generatingContent}>
+                    <ActivityIndicator size="large" color="#2e7d32" />
+                    <Text style={styles.generatingTitle}>Generating Recipes...</Text>
+                    <Text style={styles.generatingSubtext}>
+                      AI is analyzing your pantry and creating personalized recipes. This may take 15-30 seconds.
+                    </Text>
                   </View>
-                ) : (
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={handleCancelGeneration}
+                  >
+                    <Ionicons name="close-circle-outline" size={20} color="#d32f2f" />
+                    <Text style={styles.cancelButtonText}>Cancel Generation</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.generateButton}
+                  onPress={handleGenerateRecipes}
+                >
                   <Text style={styles.generateButtonText}>
                     Generate Recipes from Pantry
                   </Text>
-                )}
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )}
             </View>
 
             {generatedRecipes.length > 0 && (
@@ -720,6 +759,47 @@ const styles = StyleSheet.create({
   },
   generatingText: {
     marginLeft: 8,
+  },
+  generatingContainer: {
+    backgroundColor: "#f8faf8",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e3ece5",
+  },
+  generatingContent: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  generatingTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#2e7d32",
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  generatingSubtext: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  cancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d32f2f",
+    backgroundColor: "#fff",
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#d32f2f",
+    marginLeft: 6,
   },
 
   generatedSection: {
