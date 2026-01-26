@@ -1,16 +1,29 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './dashboard-theme.css';
 import logo from '../assets/SmartStockLogo.png';
 
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Overview',
+  '/pantry': 'Pantry',
+  '/recipes': 'Recipes',
+  '/shopping-list': 'Shopping List',
+  '/meal-planner': 'Meal Planner',
+  '/household': 'Household',
+  '/settings': 'Settings'
+};
+
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     nav('/login', { replace: true });
   };
+
+  const pageTitle = PAGE_TITLES[location.pathname] || 'Dashboard';
 
   return (
     <div className='dash-root'>
@@ -107,4 +120,3 @@ export default function DashboardLayout() {
     </div>
   );
 }
-
