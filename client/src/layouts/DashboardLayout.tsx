@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './dashboard-theme.css';
 import logo from '../assets/SmartStockLogo.png';
@@ -6,6 +7,24 @@ import logo from '../assets/SmartStockLogo.png';
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar when route changes (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -14,7 +33,27 @@ export default function DashboardLayout() {
 
   return (
     <div className='dash-root'>
-      <aside className='dash-sidebar'>
+      {/* Mobile header with hamburger menu */}
+      <header className='mobile-header'>
+        <button className='hamburger-btn' onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div className='mobile-brand'>
+          <img src={logo} alt='SmartStock' className='mobile-logo' />
+          <span>Smart Stock</span>
+        </div>
+        <div style={{ width: 40 }} /> {/* Spacer for centering */}
+      </header>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && <div className='sidebar-overlay' onClick={() => setSidebarOpen(false)} />}
+
+      <aside className={`dash-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <button className='sidebar-close' onClick={() => setSidebarOpen(false)}>
+          ×
+        </button>
         <div className='brand'>
           <div className='logo'>
             <img
