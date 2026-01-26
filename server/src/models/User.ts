@@ -13,7 +13,8 @@ export interface IUserPreferences {
 
 export interface IUser extends Document {
   email: string;
-  password: string;
+  password?: string;
+  googleId?: string;
   name: string;
   role: 'user' | 'admin';
   isActive: boolean;
@@ -40,9 +41,17 @@ const userSchema = new mongoose.Schema<IUser>({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    // Password is only required if googleId is not present
+    required: function (this: any) {
+      return !this.googleId;
+    },
     minlength: [6, 'Password must be at least 6 characters'],
     select: false
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
   },
   name: {
     type: String,
@@ -86,8 +95,12 @@ const userSchema = new mongoose.Schema<IUser>({
 
 userSchema.index({ email: 1 });
 
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
+    return next();
+  }
+
+  if (!this.password) {
     return next();
   }
 
@@ -100,9 +113,12 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-userSchema.methods.comparePassword = async function(
+userSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
+  if (!this.password) {
+    return false;
+  }
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
