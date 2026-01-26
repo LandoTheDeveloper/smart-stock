@@ -187,7 +187,7 @@ For each recipe, provide:
 - Number of servings
 - Tags (e.g., quick, breakfast, dinner, vegetarian, cuisine type, etc.)
 - Nutritional information (kcal, protein in g, carbs in g, fat in g) - provide realistic estimates
-- List of ingredients with amounts (mark items NOT in pantry with "[buy]" suffix)
+- List of ingredients with amounts
 - Step-by-step cooking instructions
 
 Return the response as a valid JSON array with this exact structure:
@@ -204,7 +204,7 @@ Return the response as a valid JSON array with this exact structure:
     "fat": 15,
     "ingredients": [
       {"name": "Ingredient Name", "amount": "100g"},
-      {"name": "Onion [buy]", "amount": "1 medium"}
+      {"name": "Onion", "amount": "1 medium"}
     ],
     "steps": [
       "Step 1 description",
