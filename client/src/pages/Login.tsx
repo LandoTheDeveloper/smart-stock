@@ -37,7 +37,7 @@ export default function Login() {
               style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }}
             />
           </div>
-        <div className='brand-text'></div>
+          <div className='brand-text'></div>
         </div>
         <div className='auth-title'>Welcome</div>
 
@@ -70,6 +70,23 @@ export default function Login() {
             {loading ? '…' : 'Log In'}
           </button>
         </form>
+
+        <div className='auth-divider'>
+          <span>OR</span>
+        </div>
+
+        <button
+          className='google-btn'
+          type='button'
+          onClick={() => (window.location.href = 'http://localhost:5001/api/auth/google')}
+        >
+          <img
+            src='https://www.svgrepo.com/show/475656/google-color.svg'
+            alt='Google'
+            style={{ width: '20px', height: '20px' }}
+          />
+          Sign in with Google
+        </button>
 
         <div className='auth-link'>
           Don’t have an account? <Link to='/signup'>Sign up</Link>

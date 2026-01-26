@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import Pantry from './pages/Pantry';
 import Recipes from './pages/Recipes';
@@ -23,6 +24,7 @@ export default function App() {
             <Route path='/' element={<HomeRedirect />} />
             <Route path='/login' element={<Login />} />
             <Route path='/signup' element={<Signup />} />
+            <Route path='/oauth-callback' element={<AuthCallback />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
