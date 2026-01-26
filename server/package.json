@@ -23,7 +23,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.20.0",
     "mongoose": "^8.19.2",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "passport-google-oidc": "^0.1.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
