@@ -1,3 +1,4 @@
+/* Theme tokens */
 :root,
 [data-theme="light"] {
   --bg: #f6fbf7;
@@ -30,28 +31,17 @@
   --danger-bg: #3a1a1a;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
+/* Base layout */
 body {
   margin: 0;
-}
-
-body {
   background: radial-gradient(circle at top, rgba(46, 125, 50, 0.14), transparent 55%),
-    radial-gradient(circle at bottom, rgba(46, 125, 50, 0.08), transparent 55%), var(--bg);
+    radial-gradient(circle at bottom, rgba(46, 125, 50, 0.08), transparent 55%),
+    var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-/* Layout */
+/* DASHBOARD LAYOUT
+   ------------------------------------------------------------------ */
 
 .dash-root {
   display: grid;
@@ -60,13 +50,12 @@ a {
   width: 100%;
 }
 
-/* Main panel */
+/* Main panel – this is key for preventing "crunched / behind sidebar" */
 .dash-main {
-  min-width: 0;
+  min-width: 0;           /* allows grid child to shrink on small screens */
   display: flex;
   flex-direction: column;
   padding: 16px 20px;
-  overflow-x: hidden; /* prevent stray horizontal scrollbar */
 }
 
 /* Sidebar */
@@ -79,8 +68,7 @@ a {
   gap: 16px;
 }
 
-/* Brand / logo */
-
+/* Brand section */
 .brand {
   display: flex;
   align-items: center;
@@ -104,7 +92,6 @@ a {
 }
 
 /* Navigation */
-
 .nav {
   display: flex;
   flex-direction: column;
@@ -144,7 +131,6 @@ a {
 }
 
 /* Sidebar footer / user info */
-
 .sidebar-footer {
   margin-top: auto;
   padding-top: 10px;
@@ -189,7 +175,6 @@ a {
 }
 
 /* Buttons */
-
 .btn-outline {
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.6);
@@ -208,16 +193,18 @@ a {
   background: rgba(148, 163, 184, 0.1);
 }
 
-/* Dashboard content */
+/* DASHBOARD CONTENT
+   ------------------------------------------------------------------ */
 
+/* Section grid used on the main dashboard (3 KPIs) */
 .dash-grid {
   display: grid;
-  /* Let KPI cards wrap and shrink instead of forcing horizontals */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin: 16px 0;
 }
 
+/* Generic card used across pages */
 .card {
   background: var(--bg-elev);
   border-radius: 18px;
@@ -244,8 +231,7 @@ a {
   color: var(--muted);
 }
 
-/* Table / recent activity */
-
+/* Table / recent activity styles */
 .table-card {
   padding: 14px 0 0;
 }
@@ -280,7 +266,6 @@ a {
   padding: 8px 8px 10px;
   display: grid;
   gap: 4px;
-  overflow-x: auto; 
 }
 
 .row {
@@ -299,7 +284,6 @@ a {
 }
 
 /* Status pills */
-
 .pill {
   display: inline-flex;
   align-items: center;
@@ -326,7 +310,7 @@ a {
   color: #b91c1c;
 }
 
-
+/* Pantry / Recipes / Shared utilities (for other pages) */
 .grid-two {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
@@ -397,7 +381,6 @@ a {
 }
 
 /* Recipe detail layout */
-
 .recipe-layout {
   display: grid;
   gap: 16px;
@@ -465,11 +448,12 @@ a {
   margin-bottom: 6px;
 }
 
-/* Responsive */
+/* RESPONSIVE
+   ------------------------------------------------------------------ */
 
 @media (max-width: 980px) {
   .dash-root {
-    grid-template-columns: 1fr; /* sidebar on top, content below */
+    grid-template-columns: 1fr;  /* sidebar on top, content below */
   }
 
   .dash-sidebar {
@@ -502,6 +486,10 @@ a {
     padding: 12px 12px 16px;
   }
 
+  .dash-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .grid-two {
     grid-template-columns: 1fr;
   }
@@ -512,6 +500,10 @@ a {
 }
 
 @media (max-width: 640px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+
   .me-email {
     display: none;
   }
