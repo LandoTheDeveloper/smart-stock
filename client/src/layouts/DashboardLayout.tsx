@@ -114,6 +114,22 @@ export default function DashboardLayout() {
           </button>
         </div>
       </aside>
+
+      <main className='dash-main'>
+        <header className='dash-header'>
+          <h1 className='dash-title'>{pageTitle}</h1>
+          <div className='header-actions'>
+            <button className='btn-soft btn-sm' onClick={() => nav('/pantry')}>
+              Pantry
+            </button>
+            <button className='btn-soft btn-sm' onClick={() => nav('/recipes')}>
+              New Recipe
+            </button>
+            <button className='btn-soft btn-sm' onClick={() => nav('/shopping-list')}>
+              Shopping List
+            </button>
+          </div>
+        </header>
         <Outlet />
       </main>
     </div>
