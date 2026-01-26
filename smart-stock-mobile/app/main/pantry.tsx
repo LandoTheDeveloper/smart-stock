@@ -445,7 +445,8 @@ export default function PantryScreen() {
                       <View style={styles.nutritionRow}>
                         {item.nutrition.nutriScore && (
                           <View style={[styles.nutriScoreBadge, { backgroundColor: getNutriScoreColor(item.nutrition.nutriScore) }]}>
-                            <Text style={styles.nutriScoreText}>{item.nutrition.nutriScore.toUpperCase()}</Text>
+                            {/* Displays either the score or "N" for any other score that is fetched/stored */}
+                            <Text style={styles.nutriScoreText}>{["A", "B", "C", "D", "E"].includes(item.nutrition.nutriScore.toUpperCase()) ? item.nutrition.nutriScore.toUpperCase() : "N"}</Text>
                           </View>
                         )}
                         {item.nutrition.kcal != null && (
