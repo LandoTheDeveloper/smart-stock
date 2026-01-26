@@ -66,6 +66,12 @@ export default function Dashboard() {
       .slice(0, 5);
   }, [categoryCounts]);
 
+  const topLocations = useMemo(() => {
+    return Object.entries(locationCounts)
+      .sort((a, b) => b[1] - a[1])
+      .filter(([, count]) => count > 0);
+  }, [locationCounts]);
+
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: '#6b726d' }}>
@@ -85,28 +91,6 @@ export default function Dashboard() {
   return (
     <>
       <style>{`
-        .storage-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        .storage-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 1rem;
-          text-align: center;
-        }
-        .storage-card .label {
-          font-size: 0.85rem;
-          color: #6b726d;
-          margin-bottom: 0.25rem;
-        }
-        .storage-card .count {
-          font-size: 1.5rem;
-          font-weight: 600;
-        }
         .category-list {
           display: flex;
           flex-direction: column;
@@ -146,33 +130,11 @@ export default function Dashboard() {
           margin-bottom: 1.5rem;
         }
         @media (max-width: 900px) {
-          .storage-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
           .dashboard-row {
             grid-template-columns: 1fr;
           }
         }
       `}</style>
-
-      <div className="storage-grid">
-        <div className="storage-card">
-          <div className="label">Fridge</div>
-          <div className="count">{locationCounts['Fridge'] || 0}</div>
-        </div>
-        <div className="storage-card">
-          <div className="label">Freezer</div>
-          <div className="count">{locationCounts['Freezer'] || 0}</div>
-        </div>
-        <div className="storage-card">
-          <div className="label">Pantry</div>
-          <div className="count">{locationCounts['Pantry'] || 0}</div>
-        </div>
-        <div className="storage-card">
-          <div className="label">Counter</div>
-          <div className="count">{locationCounts['Counter'] || 0}</div>
-        </div>
-      </div>
 
       <section className='dash-grid'>
         <div className='card'>
@@ -216,7 +178,32 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className='card table-card' style={{ marginBottom: 0 }}>
+        <section className='card'>
+          <div className='card-title' style={{ marginBottom: '1rem' }}>Storage Locations</div>
+          {topLocations.length === 0 ? (
+            <div style={{ color: '#6b726d', fontSize: '0.9rem' }}>No items yet</div>
+          ) : (
+            <div className="category-list">
+              {topLocations.map(([location, count]) => {
+                const maxCount = topLocations[0][1];
+                const percentage = (count / maxCount) * 100;
+                return (
+                  <div key={location} className="category-row">
+                    <div className="category-label">{location}</div>
+                    <div className="category-bar">
+                      <div className="category-bar-fill" style={{ width: `${percentage}%` }} />
+                    </div>
+                    <div className="category-count">{count}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="dashboard-row">
+        <section className='card table-card' style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
           <div className='table-header'>
             <div className='table-title'>Recent Activity</div>
             <div className='table-actions'>
