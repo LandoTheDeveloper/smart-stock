@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { api } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -122,19 +123,18 @@ function guessCategory(product: ProductData): Category {
   return 'Other';
 }
 
+const SCANNER_ID = 'html5-qrcode-scanner';
+
 export default function Scan() {
   const nav = useNavigate();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const detectorRef = useRef<any>(null);
-  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scanningRef = useRef(false);
 
   const [mode, setMode] = useState<'camera' | 'manual'>('camera');
-  const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
-
   const [scanning, setScanning] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
   const [productData, setProductData] = useState<ProductData | null>(null);
@@ -150,21 +150,6 @@ export default function Scan() {
     category: '' as Category | '',
     storageLocation: 'Pantry' as StorageLocation,
   });
-
-  const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-
-  const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    setCameraReady(false);
-    setScanning(false);
-  }, []);
 
   const fetchProduct = useCallback(async (barcode: string) => {
     setLoading(true);
@@ -205,47 +190,67 @@ export default function Scan() {
     }
   }, []);
 
-  const startCamera = useCallback(async () => {
-    setCameraError('');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraReady(true);
-        setScanning(true);
-
-        if (hasBarcodeDetector) {
-          // @ts-expect-error BarcodeDetector not in TS lib
-          detectorRef.current = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39'] });
-
-          scanIntervalRef.current = setInterval(async () => {
-            if (!videoRef.current || !detectorRef.current) return;
-            try {
-              const barcodes = await detectorRef.current.detect(videoRef.current);
-              if (barcodes.length > 0) {
-                stopCamera();
-                fetchProduct(barcodes[0].rawValue);
-              }
-            } catch { /* detection frame error, ignore */ }
-          }, 300);
-        }
-      }
-    } catch {
-      setCameraError('Could not access camera. Please allow camera permissions or use manual entry.');
-      setMode('manual');
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current && scanningRef.current) {
+      try {
+        await scannerRef.current.stop();
+      } catch { /* already stopped */ }
+      scanningRef.current = false;
     }
-  }, [hasBarcodeDetector, stopCamera, fetchProduct]);
+    setScanning(false);
+  }, []);
+
+  const startScanner = useCallback(async () => {
+    setCameraError('');
+    setScanning(false);
+
+    // Small delay to ensure DOM element exists
+    await new Promise(r => setTimeout(r, 100));
+
+    const el = document.getElementById(SCANNER_ID);
+    if (!el) return;
+
+    try {
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(SCANNER_ID);
+      }
+
+      await scannerRef.current.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 280, height: 180 },
+          aspectRatio: 16 / 9,
+        },
+        (decodedText) => {
+          // Barcode detected
+          stopScanner();
+          fetchProduct(decodedText);
+        },
+        () => {
+          // scan miss — ignore
+        }
+      );
+      scanningRef.current = true;
+      setScanning(true);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      if (msg.includes('Permission') || msg.includes('NotAllowed')) {
+        setCameraError('Camera permission denied. Please allow camera access in your browser settings, or use manual entry.');
+      } else if (msg.includes('NotFound') || msg.includes('device')) {
+        setCameraError('No camera found on this device. Use manual entry instead.');
+      } else {
+        setCameraError(`Could not start camera: ${msg}`);
+      }
+    }
+  }, [stopScanner, fetchProduct]);
 
   useEffect(() => {
-    if (mode === 'camera') {
-      startCamera();
+    if (mode === 'camera' && !scannedBarcode && !successMsg) {
+      startScanner();
     }
-    return () => stopCamera();
-  }, [mode, startCamera, stopCamera]);
+    return () => { stopScanner(); };
+  }, [mode, scannedBarcode, successMsg, startScanner, stopScanner]);
 
   const handleManualLookup = () => {
     const barcode = manualBarcode.trim();
@@ -253,14 +258,13 @@ export default function Scan() {
     fetchProduct(barcode);
   };
 
-  const handleScanAgain = () => {
+  const handleScanAgain = async () => {
     setScannedBarcode(null);
     setProductData(null);
     setLookupError('');
     setSuccessMsg('');
     setFormData({ name: '', quantity: '1', unit: 'count', expirationDate: '', category: '', storageLocation: 'Pantry' });
     setManualBarcode('');
-    if (mode === 'camera') startCamera();
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -324,16 +328,10 @@ export default function Scan() {
         .scan-tab { padding: 0.5rem 1.25rem; border-radius: 8px; border: 1px solid var(--border);
           background: var(--bg-elev); cursor: pointer; font-weight: 500; transition: all 0.2s; }
         .scan-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-        .camera-container { position: relative; width: 100%; aspect-ratio: 16/9; background: #111;
-          border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
-        .camera-container video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-overlay { position: absolute; inset: 0; display: flex; align-items: center;
-          justify-content: center; pointer-events: none; }
-        .scan-box { width: 240px; height: 160px; border: 3px solid rgba(46, 125, 50, 0.8);
-          border-radius: 12px; box-shadow: 0 0 0 4000px rgba(0,0,0,0.3); }
-        .scan-hint { position: absolute; bottom: 16px; color: #fff; font-size: 0.85rem;
-          background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 6px; }
-        .no-detector-msg { text-align: center; padding: 1rem; color: var(--muted); font-size: 0.85rem; }
+        .camera-wrapper { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 1rem;
+          background: #111; min-height: 300px; position: relative; }
+        #${SCANNER_ID} { width: 100%; }
+        #${SCANNER_ID} video { border-radius: 12px; }
         .product-card { display: flex; gap: 1rem; align-items: flex-start; }
         .product-img { width: 100px; height: 100px; object-fit: contain; border-radius: 8px;
           background: #f5f5f5; flex-shrink: 0; }
@@ -353,7 +351,7 @@ export default function Scan() {
           .product-card { flex-direction: column; align-items: center; text-align: center; }
           .nutri-badges { justify-content: center; } }
         .success-card { text-align: center; padding: 2rem; }
-        .success-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+        .success-icon { font-size: 3rem; margin-bottom: 0.5rem; color: var(--primary); }
         .allergen-list { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.5rem; }
         .allergen-tag { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
       `}</style>
@@ -361,11 +359,11 @@ export default function Scan() {
       <div className="scan-page">
         <div className="scan-tabs">
           <button className={`scan-tab ${mode === 'camera' ? 'active' : ''}`}
-            onClick={() => { setMode('camera'); setScannedBarcode(null); setProductData(null); setLookupError(''); setSuccessMsg(''); }}>
+            onClick={() => { stopScanner(); setMode('camera'); setScannedBarcode(null); setProductData(null); setLookupError(''); setSuccessMsg(''); }}>
             Camera Scan
           </button>
           <button className={`scan-tab ${mode === 'manual' ? 'active' : ''}`}
-            onClick={() => { stopCamera(); setMode('manual'); setScannedBarcode(null); setProductData(null); setLookupError(''); setSuccessMsg(''); }}>
+            onClick={() => { stopScanner(); setMode('manual'); setScannedBarcode(null); setProductData(null); setLookupError(''); setSuccessMsg(''); }}>
             Manual Entry
           </button>
         </div>
@@ -385,32 +383,14 @@ export default function Scan() {
         {/* Camera mode */}
         {!successMsg && mode === 'camera' && !scannedBarcode && (
           <>
-            <div className="camera-container">
-              <video ref={videoRef} playsInline muted />
-              {cameraReady && scanning && (
-                <div className="scan-overlay">
-                  <div className="scan-box" />
-                  <div className="scan-hint">Position barcode within the frame</div>
-                </div>
-              )}
-              {!cameraReady && !cameraError && (
+            <div className="camera-wrapper">
+              <div id={SCANNER_ID} />
+              {!scanning && !cameraError && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                   Starting camera...
                 </div>
               )}
             </div>
-            {cameraReady && !hasBarcodeDetector && (
-              <div className="no-detector-msg">
-                Your browser doesn't support automatic barcode detection. Enter the barcode number below or switch to manual entry.
-                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                  <input className="input" placeholder="Enter barcode number..." value={manualBarcode}
-                    onChange={e => setManualBarcode(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleManualLookup()}
-                    style={{ maxWidth: 250 }} />
-                  <button className="btn-primary" onClick={handleManualLookup} disabled={!manualBarcode.trim()}>Look Up</button>
-                </div>
-              </div>
-            )}
             {cameraError && (
               <div className="card" style={{ textAlign: 'center', color: '#dc2626' }}>
                 {cameraError}
