@@ -8,6 +8,7 @@ import ShoppingList from './pages/ShoppingList';
 import MealPlanner from './pages/MealPlanner';
 import Settings from './pages/Settings';
 import Household from './pages/Household';
+import Scan from './pages/Scan';
 import ProtectedRoute from './routes/ProtectedRoute';
 import HomeRedirect from './routes/HomeRedirect';
 import { AuthProvider } from './context/AuthContext';
@@ -33,6 +34,7 @@ export default function App() {
                 <Route path='/meal-planner' element={<MealPlanner />} />
                 <Route path='/settings' element={<Settings />} />
                 <Route path='/household' element={<Household />} />
+                <Route path='/scan' element={<Scan />} />
               </Route>
             </Route>
 
