@@ -158,3 +158,25 @@ export const getProfile = async (req: Request, res: Response) => {
     user: (req as any).user,
   });
 };
+
+export const googleCallback = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user as IUser | undefined;
+
+    if (!user) {
+      return res.redirect('http://localhost:5173/login?error=AuthenticationFailed');
+    }
+
+    const token = jwt.sign(
+      { userId: user.id.toString(), email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Redirect to client application with token
+    res.redirect(`http://localhost:5173/oauth-callback?token=${token}`);
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+    res.redirect('http://localhost:5173/login?error=ServerAuthError');
+  }
+};

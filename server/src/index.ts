@@ -3,7 +3,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import cors from 'cors';
 import morgan from 'morgan';
+import session from 'express-session';
 import { connectDatabase } from './config/database';
+import passport from './config/passport';
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
@@ -27,6 +29,16 @@ app.use(
   })
 );
 app.use(morgan('dev'));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'smart-stock-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 5 // 5 minutes
+  }
+}));
+app.use(passport.initialize());
 
 // Root route
 app.get('/', (req: Request, res: Response) => {
@@ -64,4 +76,3 @@ app.listen(PORT, () => {
   console.log(`✅ Smart Stock API listening on port ${PORT}`);
 });
 // restart
- 
