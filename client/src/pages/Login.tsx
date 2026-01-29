@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import './Auth.css';
 import logo from '../assets/SmartStockLogo.png';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 export default function Login() {
   const { login } = useAuth();
@@ -11,6 +12,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,10 +61,13 @@ export default function Login() {
             className='auth-input'
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            type='password'
+            type={visible ? 'text' : 'password'}
             autoComplete='current-password'
             required
           />
+          <div onClick={() => setVisible(!visible)} style={{display: "flex", justifyContent: "flex-end"}}>
+              {visible ? <FaEye/> : <FaEyeSlash/>}
+          </div>
 
           {err && <div style={{ color: 'red', fontSize: '0.9rem' }}>{err}</div>}
 

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { useAuth } from "../../context/authcontext";
+import { Entypo } from '@expo/vector-icons';
 
 import Logo from "../../assets/SmartStockLogoTransparent.png";
 
@@ -22,6 +23,7 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   const handleSignup = async () => {
     if (!name.trim() || !email.trim() || !password) {
@@ -68,10 +70,13 @@ export default function SignupScreen() {
         <TextInput
           style={styles.input}
           placeholder="Password"
-          secureTextEntry
           value={password}
           onChangeText={setPassword}
+          secureTextEntry={!visible}
         />
+        <TouchableOpacity onPress={() => setVisible(!visible)} style={styles.showPasswordButton}>
+          {visible ? (<Entypo name="eye"/>) : (<Entypo name="eye-with-line"/>)}
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.button}
@@ -160,5 +165,14 @@ const styles = StyleSheet.create({
   link: {
     color: "#2e7d32",
     fontWeight: "600",
+  },
+  showPasswordButton: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    position: 'relative',
+    top: -10,
+    width: 30,
   },
 });
