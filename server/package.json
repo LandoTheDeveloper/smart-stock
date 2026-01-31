@@ -23,7 +23,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.20.0",
     "mongoose": "^8.19.2",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "nodemailer": "^7.0.13"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -31,7 +32,8 @@
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^24.9.2",
+    "@types/node": "^24.10.9",
+    "@types/nodemailer": "^7.0.9",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
