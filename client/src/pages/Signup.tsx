@@ -53,7 +53,12 @@ export default function Signup() {
       await signup({ name, email, password });
       nav('/dashboard');
     } catch (e: any) {
-      setErr(e?.message ?? 'Sign up failed');
+      const serverMessage = e.response?.data?.message;
+
+      const displayMessage = serverMessage || e.message || "Sign up failed";
+
+      setErr(displayMessage);
+      console.error("Full error for debugging: ", e);
     } finally {
       setLoading(false);
     }
