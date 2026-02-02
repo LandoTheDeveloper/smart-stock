@@ -17,9 +17,6 @@ export interface IUser extends Document {
   name: string;
   role: 'user' | 'admin';
   isActive: boolean;
-  isVerified: boolean;
-  verificationToken?: string;
-  verificationTokenExpires?: Date;
   lastLogin?: Date;
   preferences?: IUserPreferences;
   households: mongoose.Types.ObjectId[];
@@ -28,7 +25,6 @@ export interface IUser extends Document {
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
-
 
 const userSchema = new mongoose.Schema<IUser>({
   email: {
@@ -83,18 +79,7 @@ const userSchema = new mongoose.Schema<IUser>({
   activeHouseholdId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Household'
-  },
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-  verificationToken: {
-    type: String
-  },
-  verificationTokenExpires: {
-    type: Date
   }
-  
 }, {
   timestamps: true
 });

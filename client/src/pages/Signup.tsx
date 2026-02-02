@@ -51,7 +51,7 @@ export default function Signup() {
 
     try {
       await signup({ name, email, password });
-      nav('/check-email');
+      nav('/dashboard');
     } catch (e: any) {
       const serverMessage = e.response?.data?.message;
 

@@ -1,9 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
-import crypto from 'crypto';
-import {sendVerificationEmail} from '../utils/sendEmail';
-import bcrypt from 'bcryptjs';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
@@ -47,25 +44,22 @@ export const register = async (
       });
     }
 
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-
-    const user = await User.create({
+    const user: IUser = await User.create({
       email,
       password,
       name,
-      verificationToken,
-      verificationTokenExpires: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1 hour
-      isVerified: false
     });
 
-
-    console.log(`Attempting to send verification email to: ${email}`);
-    await sendVerificationEmail(user.email, verificationToken);
-    console.log('sendVerificationEmail call complete.');
+    const token = jwt.sign(
+      { userId: user.id.toString(), email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully. Please check your email to verify your account.',
+      message: 'User registered successfully',
+      token,
       user: {
         id: user.id.toString(),
         email: user.email,
@@ -128,13 +122,6 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response) => {
       });
     }
 
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        message: "Please verify your email before logging in."
-      });
-    }
-
     user.lastLogin = new Date();
     await user.save();
 
@@ -164,38 +151,6 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response) => {
     });
   }
 };
-
-export const verifyEmail = async (req: Request, res: Response) => {
-  try {
-    const { token } = req.query;
-    if (!token || typeof token !== 'string') {
-      return res.status(400).json({ success: false, message: 'Token missing' });
-    }
-
-    // Find the user with this exact token that hasn’t expired
-    const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpires: { $gt: new Date() }
-    });
-
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
-    }
-
-    user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationTokenExpires = undefined;
-    await user.save();
-
-    return res.json({ success: true, message: 'Email verified!' });
-  } catch (error) {
-    console.error('Email verification error:', error);
-    return res.status(500).json({ success: false, message: 'Server error during verification' });
-  }
-};
-
-
-
 
 export const getProfile = async (req: Request, res: Response) => {
   res.json({
