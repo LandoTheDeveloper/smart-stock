@@ -89,7 +89,7 @@ export default function Signup() {
         <button
           className='google-btn'
           type='button'
-          onClick={() => (window.location.href = 'http://localhost:5001/api/auth/google')}
+          onClick={() => (window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`)}
         >
           <img
             src='https://www.svgrepo.com/show/475656/google-color.svg'
