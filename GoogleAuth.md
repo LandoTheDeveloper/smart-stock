@@ -11,3 +11,9 @@
     ![Authorized URIs](image.png)
     3. Copy the Client ID and Client Secret and add it to the .env file for the server (.env.sample contains the names for those)
     4. Save the information and test. 
+
+## To Run Authentication locally and in production
+For development purposes we run the api locally (http://localhost:XYZA) but in production it just goes to the (https://smart-stock.food) do the following:
+1. Add a new `.env.production` and `.env.development` files under the client folder
+2. Inside `.env.development` add the following: VITE_API_URL="http://localhost:<api-port-here>"
+3. Inside `.env.production` add the following: VITE_API_URL="https://smart-stock.food"
