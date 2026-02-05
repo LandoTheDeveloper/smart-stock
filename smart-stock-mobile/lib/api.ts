@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = "https://smart-stock.food";
+// TODO: UPDATE TO MAIN WEBSITE, MOBILE DEV ONLY
+export const API_BASE_URL = "https://nonedified-bailey-slangily.ngrok-free.dev";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

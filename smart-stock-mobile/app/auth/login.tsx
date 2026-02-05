@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,23 +9,33 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/authcontext';
+import { API_BASE_URL } from '../../lib/api';
 
 import Logo from '../../assets/SmartStockLogoTransparent.png';
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, setSession } = useAuth();
+  const params = useLocalSearchParams<{ error?: string }>();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (params.error) {
+      Alert.alert('Authentication Error', params.error);
+    }
+  }, [params.error]);
+
   const handleLogin = async () => {
     try {
       setSubmitting(true);
-      // In dev mode this just sets DEV_USER and token
       await login({ email, password });
       router.replace('/main/dashboard');
     } catch (err: any) {
@@ -33,6 +43,36 @@ export default function LoginScreen() {
       Alert.alert('Login failed', err?.message ?? 'Unknown error');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const authUrl = `${API_BASE_URL}/api/auth/google?platform=mobile`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'exp://192.168.1.215:8081');
+      // TODO: REMOVE, MOBILE DEV ONLY
+      if (result.type === 'success' && result.url) {
+        // Extract token from URL
+        // URL format: smartstockmobile://oauth-callback?token=...
+        const urlObj = new URL(result.url);
+        const token = urlObj.searchParams.get('token');
+        const error = urlObj.searchParams.get('error');
+
+        if (error) {
+          Alert.alert('Google Login failed', error);
+          return;
+        }
+
+        if (token) {
+          await setSession(token);
+          router.replace('/main/dashboard');
+        }
+      }
+    } catch (err: any) {
+      console.log('GOOGLE LOGIN ERROR', err);
+      if (err.type !== 'dismiss') {
+        Alert.alert('Google Login failed', err?.message ?? 'Unknown error');
+      }
     }
   };
 
@@ -66,6 +106,16 @@ export default function LoginScreen() {
         >
           <Text style={styles.buttonText}>
             {submitting ? 'Logging in...' : 'Log In'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.googleButton]}
+          onPress={handleGoogleLogin}
+          disabled={submitting}
+        >
+          <Text style={[styles.buttonText, styles.googleButtonText]}>
+            Sign in with Google
           </Text>
         </TouchableOpacity>
 
@@ -129,6 +179,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '700',
     fontSize: 16,
+  },
+  googleButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginTop: 12,
+  },
+  googleButtonText: {
+    color: '#333',
   },
   linkText: {
     marginTop: 14,

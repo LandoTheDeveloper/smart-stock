@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,19 +9,30 @@ import {
   Image,
   Alert,
 } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useLocalSearchParams } from "expo-router";
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from "../../context/authcontext";
+import { API_BASE_URL } from '../../lib/api';
 
 import Logo from "../../assets/SmartStockLogoTransparent.png";
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function SignupScreen() {
   const router = useRouter();
-  const { signup } = useAuth();
+  const { signup, setSession } = useAuth();
+  const params = useLocalSearchParams<{ error?: string }>();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (params.error) {
+      Alert.alert('Authentication Error', params.error);
+    }
+  }, [params.error]);
 
   const handleSignup = async () => {
     if (!name.trim() || !email.trim() || !password) {
@@ -38,6 +49,36 @@ export default function SignupScreen() {
       Alert.alert("Signup failed", err?.message ?? "Unknown error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    try {
+      const authUrl = `${API_BASE_URL}/api/auth/google?platform=mobile`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'smartstockmobile://');
+
+      if (result.type === 'success' && result.url) {
+        // Extract token from URL
+        const urlObj = new URL(result.url);
+        const token = urlObj.searchParams.get('token');
+        const error = urlObj.searchParams.get('error');
+
+        if (error) {
+          Alert.alert('Google Signup failed', error);
+          return;
+        }
+
+        if (token) {
+          await setSession(token);
+          router.replace('/main/dashboard');
+        }
+      }
+    } catch (err: any) {
+      console.log('GOOGLE SIGNUP ERROR', err);
+      // User cancelled or other error
+      if (err.type !== 'dismiss') {
+        Alert.alert('Google Signup failed', err?.message ?? 'Unknown error');
+      }
     }
   };
 
@@ -80,6 +121,16 @@ export default function SignupScreen() {
         >
           <Text style={styles.buttonText}>
             {submitting ? "Creating account..." : "Sign Up"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.googleButton]}
+          onPress={handleGoogleSignup}
+          disabled={submitting}
+        >
+          <Text style={[styles.buttonText, styles.googleButtonText]}>
+            Sign up with Google
           </Text>
         </TouchableOpacity>
 
@@ -149,6 +200,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "700",
     fontSize: 16,
+  },
+
+  googleButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginTop: 12,
+  },
+
+  googleButtonText: {
+    color: '#333',
   },
 
   linkText: {

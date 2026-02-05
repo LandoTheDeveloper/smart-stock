@@ -38,6 +38,7 @@ type AuthContextValue = {
   setAvatar: (value: string) => void;
   displayName: string;
   setDisplayName: (value: string) => void;
+  setSession: (token: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -146,6 +147,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   };
 
+  const setSession = async (newToken: string) => {
+    setTokenState(newToken);
+    setAuthToken(newToken);
+    await AsyncStorage.setItem(TOKEN_KEY, newToken);
+    await refreshMe();
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -156,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         refreshMe,
+        setSession,
         avatar,
         setAvatar,
         displayName,
