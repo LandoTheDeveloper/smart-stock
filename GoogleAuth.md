@@ -17,3 +17,8 @@ For development purposes we run the api locally (http://localhost:XYZA) but in p
 1. Add a new `.env.production` and `.env.development` files under the client folder
 2. Inside `.env.development` add the following: VITE_API_URL="http://localhost:<api-port-here>"
 3. Inside `.env.production` add the following: VITE_API_URL="https://smart-stock.food"
+
+## TODOS
+1. Update the URLs for the mobile app to use the main website instead of the ngrok URL I used for development.
+2. Update the mobile app URL to use the actual URL we will give it instead of using expo's URL.
+3. Find a way to keep expo's URL and the mobile app's URL depending on whether we are running the app locally or in production.
