@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import cors from 'cors';
@@ -24,6 +24,9 @@ app.use(
       'http://localhost:3000',
       'http://localhost:5173',
       'http://localhost:5174',
+      // TODO: REMOVE, MOBILE DEV ONLY
+      'https://nonedified-bailey-slangily.ngrok-free.dev',
+      'http://nonedified-bailey-slangily.ngrok-free.dev'
     ],
     credentials: true,
   })
@@ -38,7 +41,7 @@ app.use(session({
     maxAge: 1000 * 60 * 5 // 5 minutes
   }
 }));
-app.use(passport.initialize());
+app.use(passport.initialize()); 
 
 // Root route
 app.get('/', (req: Request, res: Response) => {

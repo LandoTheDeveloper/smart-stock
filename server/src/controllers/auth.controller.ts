@@ -173,10 +173,38 @@ export const googleCallback = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
+    // Determine redirect URL based on state
+    const state = req.query.state as string;
+    const cookies = req.headers.cookie || '';
+    const isMobile = cookies.includes('platform=mobile');
+
+    let redirectUrl = 'http://localhost:5173/oauth-callback';
+
+    if (state === 'mobile' || isMobile) {
+      // TODO: Change this to the actual URL of the mobile app (dynamic linking)
+      redirectUrl = 'exp://192.168.1.215:8081/--/oauth-callback';
+      if (isMobile) {
+        res.clearCookie('platform');
+      }
+    }
+
     // Redirect to client application with token
-    res.redirect(`http://localhost:5173/oauth-callback?token=${token}`);
+    res.redirect(`${redirectUrl}?token=${token}`);
   } catch (error) {
     console.error('Google Auth Error:', error);
+
+    const state = req.query.state as string;
+    const cookies = req.headers.cookie || '';
+    const isMobile = cookies.includes('platform=mobile');
+
+    if (state === 'mobile' || isMobile) {
+      if (isMobile) {
+        res.clearCookie('platform');
+      }
+      // TODO: Change this to the actual URL of the mobile app (dynamic linking)
+      return res.redirect('exp://192.168.1.215:8081/--/login?error=ServerAuthError');
+    }
+
     res.redirect('http://localhost:5173/login?error=ServerAuthError');
   }
 };
