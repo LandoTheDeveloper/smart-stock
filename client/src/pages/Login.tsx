@@ -22,12 +22,7 @@ export default function Login() {
       await login({ email, password });
       nav('/dashboard');
     } catch (e: any) {
-      const serverMessage = e.response?.data?.message;
-
-      const displayMessage = serverMessage || e.message || "Login failed.";
-
-
-      setErr(displayMessage);
+      setErr(e?.message ?? 'Login failed');
     } finally {
       setLoading(false);
     }

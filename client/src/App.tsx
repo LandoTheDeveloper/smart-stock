@@ -14,9 +14,6 @@ import HomeRedirect from './routes/HomeRedirect';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
-import CheckEmail from './pages/CheckEmail';
-import VerifyEmail from './pages/Verify';
-
 
 export default function App() {
   return (
@@ -24,12 +21,9 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path='/' element={<HomeRedirect />} />
             <Route path='/login' element={<Login />} />
             <Route path='/signup' element={<Signup />} />
-            <Route path='check-email' element={<CheckEmail />} />
-
 
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
