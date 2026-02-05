@@ -26,6 +26,7 @@ export interface IUser extends Document {
   activeHouseholdId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  verificationEmailLastSent: Date,
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -93,7 +94,8 @@ const userSchema = new mongoose.Schema<IUser>({
   },
   verificationTokenExpires: {
     type: Date
-  }
+  },
+  
   
 }, {
   timestamps: true

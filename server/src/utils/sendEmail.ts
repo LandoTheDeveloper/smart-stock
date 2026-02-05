@@ -1,27 +1,21 @@
 import nodemailer from "nodemailer";
 
 export const sendVerificationEmail = async (email: string, token: string) => {
-  // 1. Initialize the Transporter
-  // Using Mailtrap for development; check your .env for credentials
   const transporter = nodemailer.createTransport({
-    host: "sandbox.smtp.mailtrap.io",
-    port: 2525,
+    service: 'gmail',
     auth: {
-      user: process.env.MAILTRAP_USER,
-      pass: process.env.MAILTRAP_PASS
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD
     }
   });
 
-  // 2. Define the Verification URL
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:5173';
   const verificationUrl = `${backendUrl}/api/auth/verify-email?token=${token}`;
 
-  // 3. Configure the Mail Options
   const mailOptions = {
-    from: '"SmartStock Team" <noreply@smartstock.com>',
+    from: `"SmartStock Team" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: "Confirm your SmartStock Account",
-    text: `Welcome to SmartStock! Please verify your email by clicking: ${verificationUrl}`, // Plain text fallback
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
         <h2 style="color: #4CAF50; text-align: center;">Welcome to SmartStock!</h2>
@@ -46,7 +40,6 @@ export const sendVerificationEmail = async (email: string, token: string) => {
     `
   };
 
-  // 4. Send the Email
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log('Verification email sent: %s', info.messageId);
