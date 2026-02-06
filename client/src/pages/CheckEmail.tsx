@@ -21,7 +21,7 @@ export default function CheckEmail() {
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/auth/resend-verification', {
+      const response = await fetch(`$http://localhost:5001/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
