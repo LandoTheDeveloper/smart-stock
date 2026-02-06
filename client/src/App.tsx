@@ -15,6 +15,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import CheckEmail from './pages/CheckEmail';
+import VerifyEmail from './pages/VerifyEmail';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
             <Route path='/login' element={<Login />} />
             <Route path='/signup' element={<Signup />} />
             <Route path='/check-email' element={<CheckEmail />} />
+            <Route path='/verify-email' element={<VerifyEmail />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
