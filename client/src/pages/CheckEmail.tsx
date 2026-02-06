@@ -21,7 +21,9 @@ export default function CheckEmail() {
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/auth/resend-verification', {
+      const apiUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5001';
+      
+      const response = await fetch(`${apiUrl}/api/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +55,7 @@ export default function CheckEmail() {
       setIsResending(false);
     }
   };
-
+  
   return (
     <div className='auth-wrap'>
       <div className='auth-card' style={{ textAlign: 'center' }}>

@@ -9,8 +9,9 @@ export const sendVerificationEmail = async (email: string, token: string) => {
     }
   });
 
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:5173';
-  const verificationUrl = `${backendUrl}/api/auth/verify-email?token=${token}`;
+  // Change this to point to your FRONTEND URL
+  const base_url = process.env.BASE_URL || 'http://localhost:5173';
+  const verificationUrl = `${base_url}/verify-email?token=${token}`;
 
   const mailOptions = {
     from: `"SmartStock Team" <${process.env.GMAIL_USER}>`,
