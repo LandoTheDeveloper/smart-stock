@@ -16,6 +16,9 @@ passport.use(
       scope: ['openid', 'profile', 'email'],
     },
     async function verify(issuer: string, profile: any, cb: any) {
+      console.log('Google OAuth verify callback triggered');
+      console.log('Issuer:', issuer);
+      console.log('Profile:', JSON.stringify(profile, null, 2));
       try {
         // Check if user exists by googleId
         let user = await User.findOne({ googleId: profile.id });
@@ -45,6 +48,7 @@ passport.use(
 
         return cb(null, user);
       } catch (err) {
+        console.error('Google OAuth verify error:', err);
         return cb(err);
       }
     },
