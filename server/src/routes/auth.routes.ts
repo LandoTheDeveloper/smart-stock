@@ -26,13 +26,12 @@ router.get('/google', (req, res, next) => {
 
     passport.authenticate('google', {
         scope: ['profile', 'email'],
-        session: false,
         state: platform
     })(req, res, next);
 });
 
 router.get('/google/callback', (req, res, next) => {
-    passport.authenticate('google', { session: false }, (err: any, user: any, info: any) => {
+    passport.authenticate('google', {}, (err: any, user: any, info: any) => {
         console.log('Google callback - err:', err);
         console.log('Google callback - user:', user);
         console.log('Google callback - info:', info);
