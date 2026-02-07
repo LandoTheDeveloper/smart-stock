@@ -56,7 +56,7 @@ router.get('/google/callback', (req, res, next) => {
 
                 return res.redirect(finalUrl);
             }
-            return res.redirect('http://localhost:5173/login?error=AuthenticationFailed');
+            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=AuthenticationFailed`);
         }
         req.user = user;
         next();

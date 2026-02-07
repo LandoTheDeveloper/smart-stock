@@ -164,7 +164,7 @@ export const googleCallback = async (req: Request, res: Response) => {
     const user = (req as any).user as IUser | undefined;
 
     if (!user) {
-      return res.redirect('http://localhost:5173/login?error=AuthenticationFailed');
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=AuthenticationFailed`);
     }
 
     const token = jwt.sign(
@@ -185,7 +185,7 @@ export const googleCallback = async (req: Request, res: Response) => {
       redirectUri = decodeURIComponent(match[1]);
     }
 
-    let targetUrl = 'http://localhost:5173/oauth-callback';
+    let targetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback`;
 
     if (state === 'mobile' || isMobile) {
       if (isMobile) {
@@ -231,6 +231,6 @@ export const googleCallback = async (req: Request, res: Response) => {
       return res.redirect(finalUrl);
     }
 
-    res.redirect('http://localhost:5173/login?error=ServerAuthError');
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=ServerAuthError`);
   }
 };
