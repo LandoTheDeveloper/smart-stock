@@ -66,21 +66,22 @@ export default function Login() {
             required
           />
 
-          <label htmlFor='password'>Password</label>
-          <input
-            id='password'
-            className='auth-input'
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type={visible ? 'text' : 'password'}
-            autoComplete='current-password'
-            required
-          />
-          <div
-            onClick={() => setVisible(!visible)}
-            style={{ display: 'flex', justifyContent: 'flex-end' }}
-          >
-            {visible ? <FaEye /> : <FaEyeSlash />}
+          <div className="input-group">
+            <label htmlFor='password'>Password</label>
+            <div className="input-container">
+              <input
+                id='password'
+                className='auth-input'
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type={visible ? 'text' : 'password'}
+                autoComplete='current-password'
+                required
+              />
+              <div className='eye-icon' onClick={() => setVisible(!visible)}>
+                {visible ? <FaEye /> : <FaEyeSlash />}
+              </div>
+            </div>
           </div>
 
           {err && <div style={{ color: 'red', fontSize: '0.9rem' }}>{err}</div>}
