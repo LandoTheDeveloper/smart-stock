@@ -1,7 +1,6 @@
 import axios from "axios";
 
-// TODO: UPDATE TO MAIN WEBSITE, MOBILE DEV ONLY
-export const API_BASE_URL = "https://nonedified-bailey-slangily.ngrok-free.dev";
+export const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +17,9 @@ api.interceptors.response.use(
       console.error("Request timeout - backend took too long");
     } else if (!error.response) {
       console.error("Network error - cannot reach:", API_BASE_URL);
-    } else {
+    } else if(error.response.status === 401){
+      console.log("Session invalid or expired. User needs to login.");
+    }else { 
       console.error("API error:", error.response.status, error.response.data);
     }
     return Promise.reject(error);
