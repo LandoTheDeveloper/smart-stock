@@ -22,13 +22,13 @@ export default function Login() {
       await login({ email, password });
       nav('/dashboard');
     } catch (e: any) {
-        const msg =
-          e?.response?.data?.error ||
-          e?.response?.data?.message ||
-          e?.message ||     
-          'Login failed';
+      const msg =
+        e?.response?.data?.error ||
+        e?.response?.data?.message ||
+        e?.message ||
+        'Login failed';
 
-        setErr(msg);
+      setErr(msg);
     } finally {
       setLoading(false);
     }
@@ -42,10 +42,15 @@ export default function Login() {
             <img
               src={logo}
               alt='SmartStock logo'
-              style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }}
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: '12px',
+                objectFit: 'cover',
+              }}
             />
           </div>
-        <div className='brand-text'></div>
+          <div className='brand-text'></div>
         </div>
         <div className='auth-title'>Welcome</div>
 
@@ -71,8 +76,11 @@ export default function Login() {
             autoComplete='current-password'
             required
           />
-          <div onClick={() => setVisible(!visible)} style={{display: "flex", justifyContent: "flex-end"}}>
-              {visible ? <FaEye/> : <FaEyeSlash/>}
+          <div
+            onClick={() => setVisible(!visible)}
+            style={{ display: 'flex', justifyContent: 'flex-end' }}
+          >
+            {visible ? <FaEye /> : <FaEyeSlash />}
           </div>
 
           {err && <div style={{ color: 'red', fontSize: '0.9rem' }}>{err}</div>}
@@ -82,6 +90,25 @@ export default function Login() {
           </button>
         </form>
 
+        <div className='auth-divider'>
+          <span>OR</span>
+        </div>
+
+        <button
+          className='google-btn'
+          type='button'
+          onClick={() =>
+            (window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`)
+          }
+        >
+          <img
+            src='https://www.svgrepo.com/show/475656/google-color.svg'
+            alt='Google'
+            style={{ width: '20px', height: '20px' }}
+          />
+          Sign in with Google
+        </button>
+
         <div className='auth-link'>
           Don’t have an account? <Link to='/signup'>Sign up</Link>
         </div>
@@ -89,3 +116,5 @@ export default function Login() {
     </div>
   );
 }
+
+// force rebuild

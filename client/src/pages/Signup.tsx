@@ -76,7 +76,7 @@ export default function Signup() {
               style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }}
             />
           </div>
-        <div className='brand-text'></div>
+          <div className='brand-text'></div>
         </div>
         <div className='auth-title'>Create your account</div>
 
@@ -146,6 +146,23 @@ export default function Signup() {
             {loading ? '…' : 'Create account'}
           </button>
         </form>
+
+        <div className='auth-divider'>
+          <span>OR</span>
+        </div>
+
+        <button
+          className='google-btn'
+          type='button'
+          onClick={() => (window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`)}
+        >
+          <img
+            src='https://www.svgrepo.com/show/475656/google-color.svg'
+            alt='Google'
+            style={{ width: '20px', height: '20px' }}
+          />
+          Sign up with Google
+        </button>
 
         <div className='auth-link'>
           Already have an account? <Link to='/login'>Log in</Link>
