@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return raw ? (JSON.parse(raw) as User) : null;
   });
   const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem('auth.token')
+    localStorage.getItem('auth.token'),
   );
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (payload: RegisterRequest) => {
     const { data } = await api.post<AuthResponse>(
       '/api/auth/register',
-      payload
+      payload,
     );
     if (!data.success) throw new Error(data.message || 'Registration failed');
     persist(data.user, data.token);
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({ user, token, loading, login, signup, logout, refreshMe }),
-    [user, token, loading]
+    [user, token, loading],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -102,3 +102,5 @@ export const useAuth = () => {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 };
+
+//force rebuild
