@@ -27,7 +27,8 @@
     "mongoose": "^8.19.2",
     "morgan": "^1.10.1",
     "passport": "^0.7.0",
-    "passport-google-oidc": "^0.1.0"
+    "passport-google-oidc": "^0.1.0",
+    "nodemailer": "^8.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -36,7 +37,8 @@
     "@types/express-session": "^1.18.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^24.9.2",
+    "@types/node": "^24.10.11",
+    "@types/nodemailer": "^7.0.9",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

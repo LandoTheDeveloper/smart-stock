@@ -16,6 +16,7 @@ import { useAuth } from '../../context/authcontext';
 import { API_BASE_URL } from '../../lib/api';
 
 import Logo from '../../assets/SmartStockLogoTransparent.png';
+import { Entypo } from '@expo/vector-icons';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -27,6 +28,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (params.error) {
@@ -96,14 +98,17 @@ export default function LoginScreen() {
           value={email}
           onChangeText={setEmail}
         />
-
+        
         <TextInput
           style={styles.input}
           placeholder='Password'
-          secureTextEntry
           value={password}
           onChangeText={setPassword}
+          secureTextEntry={!visible}
         />
+        <TouchableOpacity onPress={() => setVisible(!visible)} style={styles.showPasswordButton}>
+          {visible ? (<Entypo name="eye"/>) : (<Entypo name="eye-with-line"/>)}
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.button}
@@ -203,5 +208,14 @@ const styles = StyleSheet.create({
   link: {
     color: '#2e7d32',
     fontWeight: '600',
+  },
+  showPasswordButton: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    position: 'relative',
+    top: -10,
+    width: 30,
   },
 });

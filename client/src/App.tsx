@@ -9,11 +9,14 @@ import ShoppingList from './pages/ShoppingList';
 import MealPlanner from './pages/MealPlanner';
 import Settings from './pages/Settings';
 import Household from './pages/Household';
+import Scan from './pages/Scan';
 import ProtectedRoute from './routes/ProtectedRoute';
 import HomeRedirect from './routes/HomeRedirect';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
+import CheckEmail from './pages/CheckEmail';
+import VerifyEmail from './pages/VerifyEmail';
 
 export default function App() {
   return (
@@ -25,6 +28,8 @@ export default function App() {
             <Route path='/login' element={<Login />} />
             <Route path='/signup' element={<Signup />} />
             <Route path='/oauth-callback' element={<AuthCallback />} />
+            <Route path='/check-email' element={<CheckEmail />} />
+            <Route path='/verify-email' element={<VerifyEmail />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
@@ -35,6 +40,7 @@ export default function App() {
                 <Route path='/meal-planner' element={<MealPlanner />} />
                 <Route path='/settings' element={<Settings />} />
                 <Route path='/household' element={<Household />} />
+                <Route path='/scan' element={<Scan />} />
               </Route>
             </Route>
 

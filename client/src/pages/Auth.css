@@ -148,3 +148,29 @@
 .auth-divider span {
   padding: 0 12px;
 }
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input {
+  width: 100%;
+  padding-right: 40px; /* Crucial: leaves space so text doesn't overlap the icon */
+  /* Keep your other existing auth-input styles here */
+}
+
+.eye-icon {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: #666; /* Adjust color as needed */
+  user-select: none; /* Prevents highlighting the icon on double click */
+}
+
+.eye-icon:hover {
+  color: #000;
+}
