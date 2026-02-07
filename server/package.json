@@ -26,9 +26,10 @@
     "mongodb": "^6.20.0",
     "mongoose": "^8.19.2",
     "morgan": "^1.10.1",
+    "nodemailer": "^8.0.0",
     "passport": "^0.7.0",
     "passport-google-oidc": "^0.1.0",
-    "nodemailer": "^8.0.0"
+    "resend": "^6.9.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
