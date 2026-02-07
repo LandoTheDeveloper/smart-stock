@@ -28,71 +28,76 @@ export interface IUser extends Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-const userSchema = new mongoose.Schema<IUser>({
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      'Please provide a valid email address'
-    ]
-  },
-  password: {
-    type: String,
-    // Password is only required if googleId is not present
-    required: function (this: any) {
-      return !this.googleId;
+const userSchema = new mongoose.Schema<IUser>(
+  {
+    email: {
+      type: String,
+      required: [true, 'Email is required'],
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: [
+        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+        'Please provide a valid email address',
+      ],
     },
-    minlength: [6, 'Password must be at least 6 characters'],
-    select: false
+    password: {
+      type: String,
+      // Password is only required if googleId is not present
+      required: function (this: any) {
+        return !this.googleId;
+      },
+      minlength: [6, 'Password must be at least 6 characters'],
+      select: false,
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    name: {
+      type: String,
+      required: [true, 'Name is required'],
+      trim: true,
+      minlength: [2, 'Name must be at least 2 characters'],
+      maxlength: [50, 'Name cannot exceed 50 characters'],
+    },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    lastLogin: {
+      type: Date,
+    },
+    preferences: {
+      dietaryPreferences: { type: [String], default: [] },
+      allergies: { type: [String], default: [] },
+      customAllergies: { type: String, default: '' },
+      avoidIngredients: { type: String, default: '' },
+      calorieTarget: { type: Number, default: 0 },
+      proteinTarget: { type: Number, default: 0 },
+      cuisinePreferences: { type: String, default: '' },
+    },
+    households: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Household',
+      },
+    ],
+    activeHouseholdId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Household',
+    },
   },
-  googleId: {
-    type: String,
-    unique: true,
-    sparse: true
+  {
+    timestamps: true,
   },
-  name: {
-    type: String,
-    required: [true, 'Name is required'],
-    trim: true,
-    minlength: [2, 'Name must be at least 2 characters'],
-    maxlength: [50, 'Name cannot exceed 50 characters']
-  },
-  role: {
-    type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  lastLogin: {
-    type: Date
-  },
-  preferences: {
-    dietaryPreferences: { type: [String], default: [] },
-    allergies: { type: [String], default: [] },
-    customAllergies: { type: String, default: '' },
-    avoidIngredients: { type: String, default: '' },
-    calorieTarget: { type: Number, default: 0 },
-    proteinTarget: { type: Number, default: 0 },
-    cuisinePreferences: { type: String, default: '' }
-  },
-  households: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Household'
-  }],
-  activeHouseholdId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Household'
-  }
-}, {
-  timestamps: true
-});
+);
 
 userSchema.index({ email: 1 });
 
@@ -115,7 +120,7 @@ userSchema.pre('save', async function (next) {
 });
 
 userSchema.methods.comparePassword = async function (
-  candidatePassword: string
+  candidatePassword: string,
 ): Promise<boolean> {
   if (!this.password) {
     return false;
