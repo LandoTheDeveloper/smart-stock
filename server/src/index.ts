@@ -13,6 +13,9 @@ import routes from './routes';
 
 const app: Application = express();
 
+// Trust proxy (needed for secure cookies behind nginx)
+app.set('trust proxy', 1);
+
 // Connect to MongoDB
 connectDatabase();
 
@@ -24,6 +27,7 @@ app.use(
       'http://localhost:3000',
       'http://localhost:5173',
       'http://localhost:5174',
+      'https://smart-stock.food',
       // TODO: REMOVE, MOBILE DEV ONLY
       'https://nonedified-bailey-slangily.ngrok-free.dev',
       'http://nonedified-bailey-slangily.ngrok-free.dev'
@@ -35,9 +39,10 @@ app.use(morgan('dev'));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'smart-stock-secret-key',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true, // Required for OAuth state storage
   cookie: {
     secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Required for OAuth cross-site redirects
     maxAge: 1000 * 60 * 5 // 5 minutes
   }
 }));
