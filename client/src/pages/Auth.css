@@ -85,6 +85,7 @@
   cursor: pointer;
   transition: 0.15s;
 }
+
 .auth-btn:hover {
   filter: brightness(0.95);
 }
@@ -95,13 +96,57 @@
   font-size: 0.9rem;
   color: var(--muted);
 }
+
 .auth-link a {
   color: var(--primary);
   font-weight: 600;
   text-decoration: none;
 }
+
 .auth-link a:hover {
   text-decoration: underline;
+}
+
+.google-btn {
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background-color 0.2s;
+  width: 100%;
+  font-family: 'Roboto', sans-serif;
+}
+
+.google-btn:hover {
+  background: #f7fafe;
+  border-color: #d2e3fc;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.auth-divider span {
+  padding: 0 12px;
 }
 
 .input-container {

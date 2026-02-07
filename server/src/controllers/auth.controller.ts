@@ -158,3 +158,79 @@ export const getProfile = async (req: Request, res: Response) => {
     user: (req as any).user,
   });
 };
+
+export const googleCallback = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user as IUser | undefined;
+
+    if (!user) {
+      return res.redirect('http://localhost:5173/login?error=AuthenticationFailed');
+    }
+
+    const token = jwt.sign(
+      { userId: user.id.toString(), email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Determine redirect URL based on state
+    const state = req.query.state as string;
+    const cookies = req.headers.cookie || '';
+    const isMobile = cookies.includes('platform=mobile');
+
+    // Extract redirect_uri from cookie
+    let redirectUri = '';
+    const match = cookies.match(/redirect_uri=([^;]+)/);
+    if (match) {
+      redirectUri = decodeURIComponent(match[1]);
+    }
+
+    let targetUrl = 'http://localhost:5173/oauth-callback';
+
+    if (state === 'mobile' || isMobile) {
+      if (isMobile) {
+        res.clearCookie('platform');
+        res.clearCookie('redirect_uri');
+      }
+      targetUrl = redirectUri || 'smartstockmobile://oauth-callback';
+    }
+
+    // Redirect to client application with token
+    // Check if targetUrl already has params (from expo deep link structure)
+    // and append properly.
+    const finalUrl = targetUrl.includes('?')
+      ? `${targetUrl}&token=${token}`
+      : `${targetUrl}?token=${token}`;
+
+    res.redirect(finalUrl);
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+
+    const state = req.query.state as string;
+    const cookies = req.headers.cookie || '';
+    const isMobile = cookies.includes('platform=mobile');
+
+    // Extract redirect_uri from cookie for error case too
+    let redirectUri = '';
+    const match = cookies.match(/redirect_uri=([^;]+)/);
+    if (match) {
+      redirectUri = decodeURIComponent(match[1]);
+    }
+
+    if (state === 'mobile' || isMobile) {
+      if (isMobile) {
+        res.clearCookie('platform');
+        res.clearCookie('redirect_uri');
+      }
+
+      const targetUrl = redirectUri || 'smartstockmobile://login';
+      const finalUrl = targetUrl.includes('?')
+        ? `${targetUrl}&error=ServerAuthError`
+        : `${targetUrl}?error=ServerAuthError`;
+
+      return res.redirect(finalUrl);
+    }
+
+    res.redirect('http://localhost:5173/login?error=ServerAuthError');
+  }
+};
