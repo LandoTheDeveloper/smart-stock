@@ -19,6 +19,8 @@ jobs:
 
       - name: Build client in CI
         working-directory: client
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
           npm ci
           npm run build
