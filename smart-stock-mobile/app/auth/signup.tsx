@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { useAuth } from "../../context/authcontext";
 import { API_BASE_URL } from '../../lib/api';
 
@@ -53,9 +54,13 @@ export default function SignupScreen() {
   };
 
   const handleGoogleSignup = async () => {
+    // Generate redirect URI dynamically using Expo Linking
+    const redirectUri = Linking.createURL('/oauth-callback');
+
     try {
-      const authUrl = `${API_BASE_URL}/api/auth/google?platform=mobile`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'smartstockmobile://');
+      const authUrl = `${API_BASE_URL}/api/auth/google?platform=mobile&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (result.type === 'success' && result.url) {
         // Extract token from URL

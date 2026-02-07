@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { useAuth } from '../../context/authcontext';
 import { API_BASE_URL } from '../../lib/api';
 
@@ -47,13 +48,18 @@ export default function LoginScreen() {
   };
 
   const handleGoogleLogin = async () => {
+    // Generate redirect URI dynamically
+    // In Expo Go, this might look like exp://192.168.x.x:19000/--/oauth-callback
+    // In production, it might be smartstockmobile://oauth-callback
+    const redirectUri = Linking.createURL('/oauth-callback');
+
     try {
-      const authUrl = `${API_BASE_URL}/api/auth/google?platform=mobile`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'exp://192.168.1.215:8081');
-      // TODO: REMOVE, MOBILE DEV ONLY
+      // Pass the redirect_uri to the backend so it knows where to return to
+      const authUrl = `${API_BASE_URL}/api/auth/google?platform=mobile&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
       if (result.type === 'success' && result.url) {
-        // Extract token from URL
-        // URL format: smartstockmobile://oauth-callback?token=...
         const urlObj = new URL(result.url);
         const token = urlObj.searchParams.get('token');
         const error = urlObj.searchParams.get('error');
