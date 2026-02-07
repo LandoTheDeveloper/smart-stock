@@ -21,7 +21,7 @@ export default function CheckEmail() {
         return;
       }
 
-      const apiUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5001';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
       
       const response = await fetch(`${apiUrl}/api/auth/resend-verification`, {
         method: 'POST',
