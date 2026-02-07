@@ -178,18 +178,31 @@ export const googleCallback = async (req: Request, res: Response) => {
     const cookies = req.headers.cookie || '';
     const isMobile = cookies.includes('platform=mobile');
 
-    let redirectUrl = 'http://localhost:5173/oauth-callback';
+    // Extract redirect_uri from cookie
+    let redirectUri = '';
+    const match = cookies.match(/redirect_uri=([^;]+)/);
+    if (match) {
+      redirectUri = decodeURIComponent(match[1]);
+    }
+
+    let targetUrl = 'http://localhost:5173/oauth-callback';
 
     if (state === 'mobile' || isMobile) {
-      // TODO: Change this to the actual URL of the mobile app (dynamic linking)
-      redirectUrl = 'exp://192.168.1.215:8081/--/oauth-callback';
       if (isMobile) {
         res.clearCookie('platform');
+        res.clearCookie('redirect_uri');
       }
+      targetUrl = redirectUri || 'smartstockmobile://oauth-callback';
     }
 
     // Redirect to client application with token
-    res.redirect(`${redirectUrl}?token=${token}`);
+    // Check if targetUrl already has params (from expo deep link structure)
+    // and append properly.
+    const finalUrl = targetUrl.includes('?')
+      ? `${targetUrl}&token=${token}`
+      : `${targetUrl}?token=${token}`;
+
+    res.redirect(finalUrl);
   } catch (error) {
     console.error('Google Auth Error:', error);
 
@@ -197,12 +210,25 @@ export const googleCallback = async (req: Request, res: Response) => {
     const cookies = req.headers.cookie || '';
     const isMobile = cookies.includes('platform=mobile');
 
+    // Extract redirect_uri from cookie for error case too
+    let redirectUri = '';
+    const match = cookies.match(/redirect_uri=([^;]+)/);
+    if (match) {
+      redirectUri = decodeURIComponent(match[1]);
+    }
+
     if (state === 'mobile' || isMobile) {
       if (isMobile) {
         res.clearCookie('platform');
+        res.clearCookie('redirect_uri');
       }
-      // TODO: Change this to the actual URL of the mobile app (dynamic linking)
-      return res.redirect('exp://192.168.1.215:8081/--/login?error=ServerAuthError');
+
+      const targetUrl = redirectUri || 'smartstockmobile://login';
+      const finalUrl = targetUrl.includes('?')
+        ? `${targetUrl}&error=ServerAuthError`
+        : `${targetUrl}?error=ServerAuthError`;
+
+      return res.redirect(finalUrl);
     }
 
     res.redirect('http://localhost:5173/login?error=ServerAuthError');
