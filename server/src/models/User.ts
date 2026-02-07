@@ -12,15 +12,18 @@ export interface IUserPreferences {
 }
 
 export interface IUser extends Document {
-  id: string;
   email: string;
   password?: string;
   googleId?: string;
   name: string;
   role: 'user' | 'admin';
   isActive: boolean;
+  isVerified: boolean;
+  verificationToken?: string;
+  verificationTokenExpires?: Date;
+  verificationEmailLastSent?: Date; // 🔥 was missing from schema
   lastLogin?: Date;
-  preferences?: IUserPreferences;
+  preferences: IUserPreferences;
   households: mongoose.Types.ObjectId[];
   activeHouseholdId?: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -37,24 +40,26 @@ const userSchema = new mongoose.Schema<IUser>(
       lowercase: true,
       trim: true,
       match: [
-        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/,
         'Please provide a valid email address',
       ],
     },
+
     password: {
       type: String,
-      // Password is only required if googleId is not present
-      required: function (this: any) {
+      required: function (this: IUser) {
         return !this.googleId;
       },
       minlength: [6, 'Password must be at least 6 characters'],
       select: false,
     },
+
     googleId: {
       type: String,
       unique: true,
       sparse: true,
     },
+
     name: {
       type: String,
       required: [true, 'Name is required'],
@@ -62,18 +67,29 @@ const userSchema = new mongoose.Schema<IUser>(
       minlength: [2, 'Name must be at least 2 characters'],
       maxlength: [50, 'Name cannot exceed 50 characters'],
     },
+
     role: {
       type: String,
       enum: ['user', 'admin'],
       default: 'user',
     },
+
     isActive: {
       type: Boolean,
       default: true,
     },
-    lastLogin: {
-      type: Date,
+
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
+
+    verificationToken: String,
+    verificationTokenExpires: Date,
+    verificationEmailLastSent: Date,
+
+    lastLogin: Date,
+
     preferences: {
       dietaryPreferences: { type: [String], default: [] },
       allergies: { type: [String], default: [] },
@@ -83,55 +99,44 @@ const userSchema = new mongoose.Schema<IUser>(
       proteinTarget: { type: Number, default: 0 },
       cuisinePreferences: { type: String, default: '' },
     },
+
     households: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Household',
       },
     ],
+
     activeHouseholdId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Household',
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true }
 );
 
 userSchema.index({ email: 1 });
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
 
-  if (!this.password) {
-    return next();
-  }
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error: any) {
-    next(error);
+  } catch (err) {
+    next(err as any);
   }
 });
 
+
 userSchema.methods.comparePassword = async function (
-  candidatePassword: string,
+  candidatePassword: string
 ): Promise<boolean> {
-  if (!this.password) {
-    return false;
-  }
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    return false;
-  }
+  if (!this.password) return false;
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 const User = mongoose.model<IUser>('User', userSchema);
-
 export default User;

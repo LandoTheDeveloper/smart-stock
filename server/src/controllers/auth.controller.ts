@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
+import crypto from 'crypto';
+import {sendVerificationEmail} from '../utils/sendEmail';
+import bcrypt from 'bcryptjs';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
@@ -44,22 +47,25 @@ export const register = async (
       });
     }
 
-    const user: IUser = await User.create({
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    const user = await User.create({
       email,
       password,
       name,
+      verificationToken,
+      verificationTokenExpires: new Date(Date.now() + 1 * 60 * 60 * 1000),
+      isVerified: false
     });
 
-    const token = jwt.sign(
-      { userId: user.id.toString(), email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+
+    console.log(`Attempting to send verification email to: ${email}`);
+    await sendVerificationEmail(user.email, verificationToken);
+    console.log('sendVerificationEmail call complete.');
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
-      token,
+      message: 'User registered successfully. Please check your email to verify your account.',
       user: {
         id: user.id.toString(),
         email: user.email,
@@ -122,6 +128,13 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response) => {
       });
     }
 
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email before logging in."
+      });
+    }
+
     user.lastLogin = new Date();
     await user.save();
 
@@ -152,6 +165,38 @@ export const login = async (req: Request<{}, {}, LoginBody>, res: Response) => {
   }
 };
 
+export const verifyEmail = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ success: false, message: 'Token missing' });
+    }
+
+    // Find the user with this exact token that hasn’t expired
+    const user = await User.findOne({
+      verificationToken: token,
+      verificationTokenExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+    }
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpires = undefined;
+    await user.save();
+
+    return res.json({ success: true, message: 'Email verified!' });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    return res.status(500).json({ success: false, message: 'Server error during verification' });
+  }
+};
+
+
+
+
 export const getProfile = async (req: Request, res: Response) => {
   res.json({
     success: true,
@@ -159,6 +204,71 @@ export const getProfile = async (req: Request, res: Response) => {
   });
 };
 
+export const resendVerification = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email is required' 
+      });
+    }
+
+    // Find user in database
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Check if already verified
+    if (user.isVerified) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email already verified' 
+      });
+    }
+
+    // Rate limiting: Check last sent time
+    const now = new Date();
+    const lastSent = user.verificationEmailLastSent;
+    if (lastSent && (now.getTime() - lastSent.getTime()) < 60000) { // 60 seconds
+      return res.status(429).json({ 
+        success: false,
+        message: 'Please wait before requesting another email' 
+      });
+    }
+
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Update user in database
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpires = tokenExpiry;
+    user.verificationEmailLastSent = now;
+    await user.save();
+
+    // Send email
+    await sendVerificationEmail(email, verificationToken);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Verification email sent successfully' 
+    });
+
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to send verification email' 
+    });
+  }
+};
 export const googleCallback = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user as IUser | undefined;
