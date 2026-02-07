@@ -51,7 +51,8 @@ export default function Signup() {
 
     try {
       await signup({ name, email, password });
-      nav('/dashboard');
+      localStorage.setItem('pendingVerificationEmail', email);
+      nav('/check-email');
     } catch (e: any) {
       const serverMessage = e.response?.data?.message;
 
