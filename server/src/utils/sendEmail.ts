@@ -8,7 +8,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'SmartStock <noreply@smart-stock.food>',
+      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
       to: email,
       subject: 'Confirm your SmartStock Account',
       html: `
@@ -32,7 +32,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
             This link will expire in 24 hours. If you did not create an account, please ignore this email.
           </p>
         </div>
-      `
+      `,
     });
 
     if (error) {
