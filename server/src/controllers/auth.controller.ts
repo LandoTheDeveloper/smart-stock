@@ -375,6 +375,53 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
 };
 
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: 'If that email exists, a password reset link has been sent.'
+      });
+    }
+
+    // Generate token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Save token to db
+    user.passwordVerificationToken = token;
+    user.passwordVerificationTokenExpires = expiresAt;
+    await user.save();
+
+    // Send email
+    await sendPasswordResetEmail(email, token);
+
+    res.status(200).json({
+      success: true,
+      message: 'If that email exists, a password reset link has been sent.'
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process password reset request.'
+    });
+  }
+};
+
 export const googleCallback = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user as IUser | undefined;

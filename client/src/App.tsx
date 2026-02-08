@@ -18,6 +18,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import CheckEmail from './pages/CheckEmail';
 import VerifyEmail from './pages/VerifyEmail';
 import ResetPassword from './pages/ResetPassword';
+import ForgotPassword from './pages/ForgotPassword';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
             <Route path='/check-email' element={<CheckEmail />} />
             <Route path='/verify-email' element={<VerifyEmail />} />
             <Route path='/reset-password' element={<ResetPassword />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>

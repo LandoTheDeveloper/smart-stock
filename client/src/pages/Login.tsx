@@ -82,6 +82,14 @@ export default function Login() {
                 {visible ? <FaEye /> : <FaEyeSlash />}
               </div>
             </div>
+            <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+              <Link 
+                to="/forgot-password" 
+                style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '0.9rem' }}
+              >
+                Forgot Password?
+              </Link>
+            </div>
           </div>
 
           {err && <div style={{ color: 'red', fontSize: '0.9rem' }}>{err}</div>}
@@ -117,5 +125,3 @@ export default function Login() {
     </div>
   );
 }
-
-// force rebuild
