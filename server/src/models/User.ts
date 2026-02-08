@@ -21,7 +21,9 @@ export interface IUser extends Document {
   isVerified: boolean;
   verificationToken?: string;
   verificationTokenExpires?: Date;
-  verificationEmailLastSent?: Date; // 🔥 was missing from schema
+  verificationEmailLastSent?: Date;
+  passwordVerificationToken?: string;
+  passwordVerificationTokenExpires?: Date,
   lastLogin?: Date;
   preferences: IUserPreferences;
   households: mongoose.Types.ObjectId[];
@@ -87,6 +89,8 @@ const userSchema = new mongoose.Schema<IUser>(
     verificationToken: String,
     verificationTokenExpires: Date,
     verificationEmailLastSent: Date,
+    passwordVerificationToken: String,
+    passwordVerificationTokenExpires: Date,
 
     lastLogin: Date,
 

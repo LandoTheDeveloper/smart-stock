@@ -17,6 +17,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import CheckEmail from './pages/CheckEmail';
 import VerifyEmail from './pages/VerifyEmail';
+import ResetPassword from './pages/ResetPassword';
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
             <Route path='/oauth-callback' element={<AuthCallback />} />
             <Route path='/check-email' element={<CheckEmail />} />
             <Route path='/verify-email' element={<VerifyEmail />} />
+            <Route path='/reset-password' element={<ResetPassword />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>

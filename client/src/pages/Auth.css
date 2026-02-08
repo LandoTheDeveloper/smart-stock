@@ -86,6 +86,17 @@
   transition: 0.15s;
 }
 
+.auth-btn-small {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: 10px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
 .auth-btn:hover {
   filter: brightness(0.95);
 }

@@ -43,6 +43,8 @@ export default function Settings() {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [preferences, setPreferences] = useState<UserPreferences>({
     dietaryPreferences: [],
@@ -102,6 +104,25 @@ export default function Settings() {
     }));
   };
 
+  const handlePasswordReset = async() => {
+    setSendingReset(true);
+    setResetMessage(null);
+
+    try {
+      const response = await api.post('/api/auth/send-password-reset');
+      if (response.data.success) {
+        setResetMessage({type: 'success', text: 'Password reset email sent! Check your inbox.' });
+      }
+    } catch (err: any) {
+      setResetMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Failed to send reset email. Please try again.'
+      });
+    } finally {
+      setSendingReset(false);
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <section className='card'>
@@ -140,6 +161,31 @@ export default function Settings() {
             <div>
               <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>Email</span>
               <div style={{ fontWeight: 600 }}>{user?.email}</div>
+            </div>
+            <div className="input-container">
+              <button 
+                id="resetPasswordBtn" 
+                className="auth-btn-small"
+                onClick={handlePasswordReset}
+                disabled={sendingReset}
+                >
+                  {sendingReset ? 'Sending....' : 'Reset Password'}
+              </button>
+              {resetMessage && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    marginBottom: '0.5rem',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '6px',
+                    color: resetMessage.type === 'success' ? 'var(--primary)' : 'var(--danger)',
+                    fontSize: '.8rem',
+                    fontWeight: 500
+                  }}
+                >
+                  {resetMessage.text}
+                </div>
+              )}
             </div>
           </div>
         </div>

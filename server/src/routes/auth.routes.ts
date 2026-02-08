@@ -6,6 +6,8 @@ import {
   verifyEmail,
   resendVerification,
   googleCallback,
+  sendPasswordReset,
+  resetPassword,
 } from '../controllers/auth.controller';
 import passport from 'passport';
 import { authenticate } from '../middleware/auth.middleware';
@@ -17,6 +19,8 @@ router.post('/login', login);
 router.get('/me', authenticate, getProfile);
 router.get('/verify-email', verifyEmail);
 router.post('/resend-verification', resendVerification);
+router.post('/send-password-reset', authenticate, sendPasswordReset);
+router.post('/reset-password', resetPassword)
 
 // Google Auth Routes
 router.get('/google', (req, res, next) => {

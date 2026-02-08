@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
 import crypto from 'crypto';
-import {sendVerificationEmail} from '../utils/sendEmail';
+import {sendVerificationEmail, sendPasswordResetEmail} from '../utils/sendEmail';
 import bcrypt from 'bcryptjs';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
@@ -269,6 +269,112 @@ export const resendVerification = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const sendPasswordReset = async (req: Request, res: Response) => {
+  try {
+    // get user id and email
+    //console.log('Req.user: ', (req as any).user);
+
+    const userEmail = (req as any).user?.email;
+    // console.log('User email: ',userEmail);
+
+    if (!userEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'No email provided.'
+      });
+    }
+
+    const user = await User.findOne({ email: userEmail });
+    //console.log('user: ', user);
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Generate token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+
+    // save token to db
+    user.passwordVerificationToken = token;
+    user.passwordVerificationTokenExpires = expiresAt;
+
+    await user.save();
+
+    // send email
+    await sendPasswordResetEmail(userEmail, token);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Password reset email sent successfully!' 
+    });
+
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to send password reset.' 
+    });
+  }
+
+
+}
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    // Find user with valid token
+    const user = await User.findOne({
+      passwordVerificationToken: token,
+      passwordVerificationTokenExpires: { $gt: new Date() }
+    }).select('+password');
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.passwordVerificationToken = undefined;
+    user.passwordVerificationTokenExpires = undefined;
+    
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
+    });
+  }
+};
+
 export const googleCallback = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user as IUser | undefined;
