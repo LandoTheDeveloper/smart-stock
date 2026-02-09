@@ -622,7 +622,7 @@ export default function Pantry() {
                         onClick={() => removeItem(it._id, true)}
                         title='Mark as finished'
                       >
-                        Done
+                        Delete
                       </button>
                       <button
                         className='btn-soft btn-sm'
