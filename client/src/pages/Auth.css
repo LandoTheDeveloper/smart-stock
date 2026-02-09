@@ -186,8 +186,6 @@
   color: #000;
 }
 
-/* src/components/FeedbackButton.css */
-
 /* Floating Button */
 .feedback-float-btn {
   position: fixed;
@@ -196,12 +194,12 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary);
   border: none;
   color: white;
   font-size: 24px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px var(--primary-20);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,13 +325,13 @@
 }
 
 .feedback-type-card:hover {
-  border-color: #667eea;
+  border-color: var(--primary-20);
   background: #f9fafb;
 }
 
 .feedback-type-card.active {
-  border-color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-color: var(--primary);
+  background: linear-gradient(135deg, var(--primary-20) 0%, rgba(118, 75, 162, 0.1) 100%);
 }
 
 .feedback-type-card input[type="radio"] {
@@ -390,7 +388,7 @@
 .feedback-input:focus,
 .feedback-textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -418,7 +416,7 @@
 /* Submit Button */
 .feedback-submit-btn {
   padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -430,13 +428,13 @@
 
 .feedback-submit-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px var(--primary-20);
 }
 
 .feedback-submit-btn:active:not(:disabled) {
   transform: translateY(0);
 }
-
+ 
 .feedback-submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
