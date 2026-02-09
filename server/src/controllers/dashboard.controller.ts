@@ -24,7 +24,21 @@ export const getOverview = async (req: Request, res: Response) => {
 
     const allItems = await PantryItem.find(buildHouseholdQuery(context)).sort({ lastUpdated: -1 });
 
-    const lowStockItems = allItems.filter(item => item.quantity <= 2);
+
+const lowStockItems = allItems.filter(item => item.quantity <= 2);
+
+const topLowStockItems = [...lowStockItems] // avoid mutating lowStockItems
+  .sort((a, b) => a.quantity - b.quantity)
+  .slice(0, 5)
+  .map(item => ({
+    id: String(item._id),
+    item: item.name,
+    qty: item.quantity,
+    unit: item.unit || 'count'
+  }));
+
+
+
     const expiringSoonItems = allItems.filter(item => {
       if (!item.expirationDate) return false;
       return item.expirationDate <= fiveDaysFromNow;
@@ -70,6 +84,7 @@ export const getOverview = async (req: Request, res: Response) => {
       success: true,
       data: {
         lowStock: lowStockItems.length,
+        lowStockItems: topLowStockItems,
         expiringSoon: expiringSoonItems.length,
         pantrySize: allItems.length,
         recentActivity,

@@ -10,8 +10,16 @@ type Activity = {
   status: 'ok' | 'warn' | 'danger';
 };
 
+type LowStockItem = {
+  id: string;
+  item: string;
+  qty: number;
+  unit: string;
+};
+
 type OverviewData = {
   lowStock: number;
+  lowStockItems: LowStockItem[];
   expiringSoon: number;
   pantrySize: number;
   recentActivity: Activity[];
@@ -23,6 +31,7 @@ export default function Dashboard() {
   const [q, setQ] = useState('');
   const [data, setData] = useState<OverviewData>({
     lowStock: 0,
+    lowStockItems: [],
     expiringSoon: 0,
     pantrySize: 0,
     recentActivity: [],
