@@ -11,3 +11,4 @@
 # ignore test files
 **/*.test.ts
 **/*.test.tsx
+client/.env
