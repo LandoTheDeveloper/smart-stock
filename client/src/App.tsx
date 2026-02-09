@@ -19,6 +19,7 @@ import CheckEmail from './pages/CheckEmail';
 import VerifyEmail from './pages/VerifyEmail';
 import ResetPassword from './pages/ResetPassword';
 import ForgotPassword from './pages/ForgotPassword';
+import FeedbackButton from './pages/Feedback';
 
 export default function App() {
   return (
@@ -50,6 +51,7 @@ export default function App() {
 
             <Route path='*' element={<HomeRedirect />} />
           </Routes>
+          <FeedbackButton />
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>

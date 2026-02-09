@@ -1,4 +1,9 @@
-export type User = { id: string; email: string; name: string };
+export type User = { 
+  id: string; 
+  email: string; 
+  name: string;
+  role: 'user' | 'admin';
+};
 
 export type LoginRequest = { email: string; password: string };
 export type RegisterRequest = { email: string; password: string; name: string };
