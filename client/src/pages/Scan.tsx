@@ -55,6 +55,7 @@ interface ProductData {
   ecoscore_grade?: string;
   allergens_tags?: string[];
   labels_tags?: string[];
+  serving_size?: string;
   nutriments?: {
     'energy-kcal_100g'?: number;
     proteins_100g?: number;
@@ -64,6 +65,14 @@ interface ProductData {
     'saturated-fat_100g'?: number;
     fiber_100g?: number;
     sodium_100g?: number;
+    'energy-kcal_serving'?: number;
+    proteins_serving?: number;
+    carbohydrates_serving?: number;
+    sugars_serving?: number;
+    fat_serving?: number;
+    'saturated-fat_serving'?: number;
+    fiber_serving?: number;
+    sodium_serving?: number;
   };
 }
 
@@ -493,46 +502,61 @@ export default function Scan() {
                   </div>
                 </div>
 
-                {productData.nutriments && (
-                  <div className="nutrition-grid" style={{ marginBottom: '1rem' }}>
-                    {productData.nutriments['energy-kcal_100g'] != null && (
-                      <div className="nutrition-item">
-                        <div className="nutrition-value">{Math.round(productData.nutriments['energy-kcal_100g'])}</div>
-                        <div className="nutrition-label">kcal/100g</div>
+                {productData.nutriments && (() => {
+                  const n = productData.nutriments;
+                  const hasServing = n['energy-kcal_serving'] != null || n.proteins_serving != null;
+                  const kcal = hasServing ? n['energy-kcal_serving'] : n['energy-kcal_100g'];
+                  const protein = hasServing ? n.proteins_serving : n.proteins_100g;
+                  const carbs = hasServing ? n.carbohydrates_serving : n.carbohydrates_100g;
+                  const fat = hasServing ? n.fat_serving : n.fat_100g;
+                  const fiber = hasServing ? n.fiber_serving : n.fiber_100g;
+                  const sugars = hasServing ? n.sugars_serving : n.sugars_100g;
+                  const label = hasServing ? `per serving${productData.serving_size ? ` (${productData.serving_size})` : ''}` : 'per 100g';
+
+                  return (
+                    <>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>Nutrition {label}</div>
+                      <div className="nutrition-grid" style={{ marginBottom: '1rem' }}>
+                        {kcal != null && (
+                          <div className="nutrition-item">
+                            <div className="nutrition-value">{Math.round(kcal)}</div>
+                            <div className="nutrition-label">kcal</div>
+                          </div>
+                        )}
+                        {protein != null && (
+                          <div className="nutrition-item">
+                            <div className="nutrition-value">{protein.toFixed(1)}g</div>
+                            <div className="nutrition-label">Protein</div>
+                          </div>
+                        )}
+                        {carbs != null && (
+                          <div className="nutrition-item">
+                            <div className="nutrition-value">{carbs.toFixed(1)}g</div>
+                            <div className="nutrition-label">Carbs</div>
+                          </div>
+                        )}
+                        {fat != null && (
+                          <div className="nutrition-item">
+                            <div className="nutrition-value">{fat.toFixed(1)}g</div>
+                            <div className="nutrition-label">Fat</div>
+                          </div>
+                        )}
+                        {fiber != null && (
+                          <div className="nutrition-item">
+                            <div className="nutrition-value">{fiber.toFixed(1)}g</div>
+                            <div className="nutrition-label">Fiber</div>
+                          </div>
+                        )}
+                        {sugars != null && (
+                          <div className="nutrition-item">
+                            <div className="nutrition-value">{sugars.toFixed(1)}g</div>
+                            <div className="nutrition-label">Sugars</div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {productData.nutriments.proteins_100g != null && (
-                      <div className="nutrition-item">
-                        <div className="nutrition-value">{productData.nutriments.proteins_100g.toFixed(1)}g</div>
-                        <div className="nutrition-label">Protein</div>
-                      </div>
-                    )}
-                    {productData.nutriments.carbohydrates_100g != null && (
-                      <div className="nutrition-item">
-                        <div className="nutrition-value">{productData.nutriments.carbohydrates_100g.toFixed(1)}g</div>
-                        <div className="nutrition-label">Carbs</div>
-                      </div>
-                    )}
-                    {productData.nutriments.fat_100g != null && (
-                      <div className="nutrition-item">
-                        <div className="nutrition-value">{productData.nutriments.fat_100g.toFixed(1)}g</div>
-                        <div className="nutrition-label">Fat</div>
-                      </div>
-                    )}
-                    {productData.nutriments.fiber_100g != null && (
-                      <div className="nutrition-item">
-                        <div className="nutrition-value">{productData.nutriments.fiber_100g.toFixed(1)}g</div>
-                        <div className="nutrition-label">Fiber</div>
-                      </div>
-                    )}
-                    {productData.nutriments.sugars_100g != null && (
-                      <div className="nutrition-item">
-                        <div className="nutrition-value">{productData.nutriments.sugars_100g.toFixed(1)}g</div>
-                        <div className="nutrition-label">Sugars</div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </>
+                  );
+                })()}
               </>
             )}
 

@@ -476,8 +476,7 @@ export default function Pantry() {
 
         <div className='table'>
           <div
-            className='row head'
-            style={{ gridTemplateColumns: '0.3fr 2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
+            className='row head pantry-row'
           >
             <div>
               <input
@@ -500,9 +499,8 @@ export default function Pantry() {
             const e = editing[it._id];
             return (
               <div
-                className='row'
+                className='row pantry-row'
                 key={it._id}
-                style={{ gridTemplateColumns: '0.3fr 2fr 0.7fr 1fr 1fr 0.8fr 1.6fr' }}
               >
                 <div>
                   <input
@@ -511,7 +509,7 @@ export default function Pantry() {
                     onChange={() => toggleSelect(it._id)}
                   />
                 </div>
-                <div>
+                <div className='mobile-full'>
                   <div className='cell-title'>{it.name}</div>
                   <div className='cell-sub'>
                     {it.category || 'Uncategorized'}
@@ -533,7 +531,7 @@ export default function Pantry() {
                             verticalAlign: 'middle'
                           }}>
                             {
-                            // checks if it is a valid nutriscore, otherwise just outputs for cases like "unknown" or "not applicable"  
+                            // checks if it is a valid nutriscore, otherwise just outputs for cases like "unknown" or "not applicable"
                             ["A", "B", "C", "D", "E"].includes(it.nutrition.nutriScore.toUpperCase()) ? it.nutrition.nutriScore.toUpperCase() : "N"
                             }
                           </span>
@@ -731,7 +729,7 @@ export default function Pantry() {
                       required
                     />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className='form-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
                         Quantity
@@ -766,7 +764,7 @@ export default function Pantry() {
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className='form-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
                         Category
