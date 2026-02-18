@@ -12,6 +12,7 @@ export interface IUserPreferences {
 }
 
 export interface IUser extends Document {
+  id: string;
   email: string;
   password?: string;
   googleId?: string;
