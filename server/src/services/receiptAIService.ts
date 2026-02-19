@@ -50,6 +50,8 @@ export async function parseReceipt(text: string): Promise<ParsedGrocery[]> {
 
         Estimate expiration using typical shelf life.
 
+        If the receipt is from Costco, ORGNC BS BST is Organic Chicken Breast
+
         Return EXACTLY:
 
         [
