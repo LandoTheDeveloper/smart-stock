@@ -20,21 +20,42 @@ async function test() {
 
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+  const today = new Date().toISOString().split("T")[0];
+
   const prompt = `
-        You are a grocery receipt parser.
+    You are a grocery receipt parser.
 
-        Extract ONLY grocery food items.
+    IMPORTANT:
 
-        Return STRICT JSON:
+    Return ONLY valid JSON.
+    Do NOT repeat items.
+    Do NOT output duplicate fields.
+    Do NOT output partial objects.
+    Do NOT output explanation text.
+    Do NOT output markdown.
 
-        [
-        { "name": "string", "quantity": number }
-        ]
+    If unsure, skip the item.
 
-        Output JSON ONLY.
+    Use today's date: ${today}
 
-        Receipt:
-        ${text}
+    Estimate expiration using typical grocery shelf life.
+
+    Return EXACTLY this format:
+
+    [
+      {
+        "name": "Full grocery item name",
+        "quantity": number,
+        "expected_expiration": "YYYY-MM-DD"
+      }
+    ]
+
+    JSON ONLY.
+    NO EXTRA TEXT.
+
+    Receipt:
+
+    ${text}
 `;
 
   const response = await model.generateContent(prompt);
