@@ -19,41 +19,52 @@ export async function parseReceipt(text: string): Promise<ParsedGrocery[]> {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const prompt = `
-You are a grocery receipt parser.
+    const prompt = `
+        You are a grocery receipt parser.
 
-IMPORTANT:
+        IMPORTANT RULES:
 
-Return ONLY valid JSON.
-Do NOT repeat items.
-Do NOT output duplicate fields.
-Do NOT output partial objects.
-Do NOT output explanation text.
-Do NOT output markdown.
+        Return ONLY valid JSON.
+        No markdown.
+        No explanations.
 
-If unsure, skip the item.
+        Some grocery receipts DO NOT show weight or size.
 
-Use today's date: ${today}
+        When weight/size is missing:
 
-Estimate expiration using typical grocery shelf life.
+        Estimate a REALISTIC grocery quantity using common US package sizes.
 
-Return EXACTLY this format:
+        Examples:
 
-[
-  {
-    "name": "Full grocery item name",
-    "quantity": number,
-    "expected_expiration": "YYYY-MM-DD"
-  }
-]
+        Ground Beef: typically 1 lb, 2 lb, 3 lb, or 4 lb → estimate best guess
+        Milk: usually 1 gallon or 0.5 gallon
+        Eggs: usually 6 or 12 or 18 count
+        Chicken breast: usually 1-3 lbs
+        Rice: often 1 lb, 2 lb, or 5 lb bag
 
-JSON ONLY.
-NO EXTRA TEXT.
+        If an item is produce (bananas, apples, etc):
 
-Receipt:
+        Estimate reasonable pounds or count.
 
-${text}
-`;
+        Use today's date: ${today}
+
+        Estimate expiration using typical shelf life.
+
+        Return EXACTLY:
+
+        [
+        {
+            "name": "Full grocery item name",
+            "quantity": number,
+            "unit": "lbs | oz | count | gallon | package",
+            "expected_expiration": "YYYY-MM-DD"
+        }
+        ]
+
+        Receipt text:
+
+        ${text}
+    `;
 
   const response = await model.generateContent(prompt);
 
