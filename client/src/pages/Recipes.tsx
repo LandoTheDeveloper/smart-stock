@@ -958,7 +958,7 @@ export default function Recipes() {
                 <div className='modal-title'>Add Custom Recipe</div>
                 <button type='button' className='btn-outline' onClick={() => setShowAddModal(false)}>Close</button>
               </div>
-              <div className='modal-body' style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div className='modal-body'>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Recipe Title *</label>

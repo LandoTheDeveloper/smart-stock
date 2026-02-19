@@ -45,12 +45,14 @@ const topLowStockItems = [...lowStockItems] // avoid mutating lowStockItems
     });
 
     const recentActivity = allItems.slice(0, 10).map(item => {
-      let status: 'ok' | 'warn' | 'danger' = 'ok';
+      let status: 'ok' | 'warn' | 'danger' | 'expired' = 'ok';
 
       if (item.expirationDate) {
         const daysUntilExpiry = Math.ceil((item.expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (daysUntilExpiry <= 2) {
+        if (daysUntilExpiry < 0) {
+          status = 'expired';
+        } else if (daysUntilExpiry <= 2) {
           status = 'danger';
         } else if (daysUntilExpiry <= 5) {
           status = 'warn';

@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { UNITS, getDefaultUnit } from '../lib/units';
+import type { DefaultUnits } from '../lib/units';
 
 // Shelf life utilities
 const PRODUCT_SHELF_LIVES: Record<string, number> = {
@@ -89,8 +91,6 @@ const CATEGORIES = [
 
 const STORAGE_LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Counter'];
 
-const UNITS = ['count', 'g', 'kg', 'ml', 'L', 'oz', 'lb', 'cups', 'tbsp', 'tsp'];
-
 type Nutrition = {
   kcal?: number;
   protein?: number;
@@ -132,6 +132,9 @@ export default function Pantry() {
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'location' | 'expires' | 'status' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [defaultUnits, setDefaultUnits] = useState<DefaultUnits | undefined>();
   const [newItem, setNewItem] = useState({
     name: '',
     quantity: 1,
@@ -143,7 +146,19 @@ export default function Pantry() {
 
   useEffect(() => {
     fetchItems();
+    fetchDefaultUnits();
   }, []);
+
+  const fetchDefaultUnits = async () => {
+    try {
+      const response = await api.get<{ success: boolean; data: { defaultUnits?: DefaultUnits } }>('/api/user/preferences');
+      if (response.data.success && response.data.data?.defaultUnits) {
+        setDefaultUnits(response.data.data.defaultUnits);
+      }
+    } catch (err) {
+      console.error('Failed to fetch default units:', err);
+    }
+  };
 
   const fetchItems = async () => {
     try {
@@ -158,6 +173,30 @@ export default function Pantry() {
       setError(err.response?.data?.message || 'Failed to load pantry items');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getDaysUntilExpiry = (isoDate?: string) => {
+    if (!isoDate) return Infinity;
+    const days = Math.floor((new Date(isoDate).getTime() - Date.now()) / 86400000);
+    return isNaN(days) ? Infinity : days;
+  };
+
+  const getStatusRank = (isoDate?: string) => {
+    const days = getDaysUntilExpiry(isoDate);
+    if (days === Infinity) return 3; // No Date
+    if (days < 0) return 0; // Expired
+    if (days <= 2) return 1; // Urgent
+    if (days <= 5) return 2; // Soon
+    return 4; // OK
+  };
+
+  const toggleSort = (col: 'location' | 'expires' | 'status') => {
+    if (sortBy === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir('asc');
     }
   };
 
@@ -177,8 +216,24 @@ export default function Pantry() {
       result = result.filter((i) => i.name.toLowerCase().includes(s));
     }
 
+    if (sortBy) {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      result = [...result].sort((a, b) => {
+        if (sortBy === 'location') {
+          return (a.storageLocation || 'Pantry').localeCompare(b.storageLocation || 'Pantry') * dir;
+        }
+        if (sortBy === 'expires') {
+          return (getDaysUntilExpiry(a.expirationDate) - getDaysUntilExpiry(b.expirationDate)) * dir;
+        }
+        if (sortBy === 'status') {
+          return (getStatusRank(a.expirationDate) - getStatusRank(b.expirationDate)) * dir;
+        }
+        return 0;
+      });
+    }
+
     return result;
-  }, [q, items, categoryFilter, locationFilter]);
+  }, [q, items, categoryFilter, locationFilter, sortBy, sortDir]);
 
 
   const startEdit = (id: string) => {
@@ -395,6 +450,7 @@ export default function Pantry() {
 
     if (isNaN(days)) return <span className='pill warn'>Unknown</span>;
     if (days < 0) return <span className='pill danger'>Expired</span>;
+    if (days <= 2) return <span className='pill danger'>Urgent</span>;
     if (days <= 5) return <span className='pill warn'>Soon</span>;
     return <span className='pill ok'>OK</span>;
   };
@@ -425,7 +481,14 @@ export default function Pantry() {
     <>
       <section className='card table-card'>
         <div className='table-header'>
-          <div className='table-title'>Pantry</div>
+          <div className='table-title' style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            Pantry
+            {items.filter(i => i.quantity <= 2).length > 0 && (
+              <span className='pill danger' style={{ fontSize: '0.75rem' }}>
+                {items.filter(i => i.quantity <= 2).length} low stock
+              </span>
+            )}
+          </div>
           <div className='table-actions' style={{ alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <input
               className='input'
@@ -488,9 +551,15 @@ export default function Pantry() {
             </div>
             <div>Item</div>
             <div>Qty</div>
-            <div>Location</div>
-            <div>Expires</div>
-            <div>Status</div>
+            <div style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort('location')}>
+              Location {sortBy === 'location' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+            </div>
+            <div style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort('expires')}>
+              Expires {sortBy === 'expires' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+            </div>
+            <div style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort('status')}>
+              Status {sortBy === 'status' ? (sortDir === 'asc' ? '\u2191' : '\u2193') : ''}
+            </div>
             <div>Actions</div>
           </div>
 
@@ -565,7 +634,7 @@ export default function Pantry() {
                       style={{ width: 70 }}
                     />
                   ) : (
-                    <span className='badge'>{it.quantity} {it.unit || 'count'}</span>
+                    <span className={`badge${it.quantity <= 2 ? ' badge-low' : ''}`}><strong>{it.quantity}</strong> <span className='unit-label'>{it.unit || 'count'}</span></span>
                   )}
                 </div>
                 <div>
@@ -732,6 +801,50 @@ export default function Pantry() {
                   <div className='form-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        Category
+                      </label>
+                      <select
+                        className='input'
+                        value={newItem.category}
+                        onChange={(e) => {
+                          const category = e.target.value;
+                          setNewItem((prev) => {
+                            const suggestedDate = getSuggestedExpirationDate(prev.name, category);
+                            return {
+                              ...prev,
+                              category,
+                              unit: getDefaultUnit(category, defaultUnits),
+                              expirationDate: suggestedDate
+                            };
+                          });
+                        }}
+                      >
+                        <option value=''>Select category</option>
+                        {CATEGORIES.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        Storage Location
+                      </label>
+                      <select
+                        className='input'
+                        value={newItem.storageLocation}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({ ...prev, storageLocation: e.target.value }))
+                        }
+                      >
+                        {STORAGE_LOCATIONS.map(loc => (
+                          <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className='form-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
                         Quantity
                       </label>
                       <input
@@ -760,50 +873,6 @@ export default function Pantry() {
                       >
                         {UNITS.map(u => (
                           <option key={u} value={u}>{u}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className='form-grid-2' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                        Category
-                      </label>
-                      <select
-                        className='input'
-                        value={newItem.category}
-                        onChange={(e) => {
-                          const category = e.target.value;
-                          setNewItem((prev) => {
-                            // Recalculate expiration date when category changes
-                            const suggestedDate = getSuggestedExpirationDate(prev.name, category);
-                            return {
-                              ...prev,
-                              category,
-                              expirationDate: suggestedDate
-                            };
-                          });
-                        }}
-                      >
-                        <option value=''>Select category</option>
-                        {CATEGORIES.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                        Storage Location
-                      </label>
-                      <select
-                        className='input'
-                        value={newItem.storageLocation}
-                        onChange={(e) =>
-                          setNewItem((prev) => ({ ...prev, storageLocation: e.target.value }))
-                        }
-                      >
-                        {STORAGE_LOCATIONS.map(loc => (
-                          <option key={loc} value={loc}>{loc}</option>
                         ))}
                       </select>
                     </div>

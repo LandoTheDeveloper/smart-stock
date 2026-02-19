@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { BarcodeDetector } from 'barcode-detector';
 import { api } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
+import { UNITS, getDefaultUnit } from '../lib/units';
+import type { DefaultUnits } from '../lib/units';
 
 const CATEGORIES = [
   'Dairy', 'Produce', 'Meat', 'Seafood', 'Bakery', 'Frozen',
@@ -10,8 +12,6 @@ const CATEGORIES = [
 ] as const;
 
 const STORAGE_LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Counter'] as const;
-
-const UNITS = ['count', 'g', 'kg', 'ml', 'L', 'oz', 'lb', 'cups', 'tbsp', 'tsp', 'pcs', 'pack', 'box', 'can', 'bottle', 'bag'] as const;
 
 type Category = (typeof CATEGORIES)[number];
 type StorageLocation = (typeof STORAGE_LOCATIONS)[number];
@@ -152,6 +152,8 @@ export default function Scan() {
   const [successMsg, setSuccessMsg] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [defaultUnits, setDefaultUnits] = useState<DefaultUnits | undefined>();
+
   const [formData, setFormData] = useState({
     name: '',
     quantity: '1',
@@ -160,6 +162,16 @@ export default function Scan() {
     category: '' as Category | '',
     storageLocation: 'Pantry' as StorageLocation,
   });
+
+  useEffect(() => {
+    api.get<{ success: boolean; data: { defaultUnits?: DefaultUnits } }>('/api/user/preferences')
+      .then(res => {
+        if (res.data.success && res.data.data?.defaultUnits) {
+          setDefaultUnits(res.data.data.defaultUnits);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchProduct = useCallback(async (barcode: string) => {
     setLoading(true);
@@ -174,12 +186,13 @@ export default function Scan() {
       if (data.status === 1 && data.product) {
         const p = data.product as ProductData;
         setProductData(p);
+        const cat = guessCategory(p);
         setFormData({
           name: p.product_name || '',
           quantity: '1',
-          unit: p.quantity || 'count',
+          unit: getDefaultUnit(cat, defaultUnits),
           expirationDate: getSuggestedExpirationDate(p.product_name, p.categories_tags),
-          category: guessCategory(p),
+          category: cat,
           storageLocation: 'Pantry',
         });
       } else {
@@ -198,7 +211,7 @@ export default function Scan() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [defaultUnits]);
 
   const stopScanner = useCallback(() => {
     scanningRef.current = false;
@@ -588,7 +601,10 @@ export default function Scan() {
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Category</label>
                     <select className="input" value={formData.category}
-                      onChange={e => setFormData(p => ({ ...p, category: e.target.value as Category }))}>
+                      onChange={e => {
+                        const cat = e.target.value as Category;
+                        setFormData(p => ({ ...p, category: cat, unit: getDefaultUnit(cat, defaultUnits) }));
+                      }}>
                       <option value="">Select...</option>
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>

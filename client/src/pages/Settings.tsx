@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { SOLID_UNITS, LIQUID_UNITS, COUNTABLE_UNITS } from '../lib/units';
 
 const DIETARY_PREFERENCES = [
   'Vegetarian',
@@ -36,6 +37,11 @@ type UserPreferences = {
   calorieTarget: number;
   proteinTarget: number;
   cuisinePreferences: string;
+  defaultUnits: {
+    solid: string;
+    liquid: string;
+    countable: string;
+  };
 };
 
 type FeedbackItem = {
@@ -77,7 +83,12 @@ export default function Settings() {
     avoidIngredients: '',
     calorieTarget: 0,
     proteinTarget: 0,
-    cuisinePreferences: ''
+    cuisinePreferences: '',
+    defaultUnits: {
+      solid: 'g',
+      liquid: 'ml',
+      countable: 'count',
+    }
   });
 
   useEffect(() => {
@@ -389,6 +400,82 @@ export default function Settings() {
                 style={{ width: '100%' }}
               />
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className='card'>
+        <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Default Units</h2>
+          <p style={{ margin: '0.5rem 0 0', color: 'var(--muted)', fontSize: '0.9rem' }}>
+            Set default measurement units for new items by category type
+          </p>
+        </div>
+        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+              Solid Items
+            </label>
+            <p style={{ margin: '0 0 0.5rem', color: 'var(--muted)', fontSize: '0.8rem' }}>
+              Meat, Dairy, Produce, Seafood, Grains & Pasta, Spices
+            </p>
+            <select
+              className='input'
+              value={preferences.defaultUnits?.solid || 'g'}
+              onChange={(e) => setPreferences(prev => ({
+                ...prev,
+                defaultUnits: { ...prev.defaultUnits, solid: e.target.value }
+              }))}
+              style={{ width: '100%' }}
+            >
+              {SOLID_UNITS.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+              Liquid Items
+            </label>
+            <p style={{ margin: '0 0 0.5rem', color: 'var(--muted)', fontSize: '0.8rem' }}>
+              Beverages, Condiments
+            </p>
+            <select
+              className='input'
+              value={preferences.defaultUnits?.liquid || 'ml'}
+              onChange={(e) => setPreferences(prev => ({
+                ...prev,
+                defaultUnits: { ...prev.defaultUnits, liquid: e.target.value }
+              }))}
+              style={{ width: '100%' }}
+            >
+              {LIQUID_UNITS.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+              Countable Items
+            </label>
+            <p style={{ margin: '0 0 0.5rem', color: 'var(--muted)', fontSize: '0.8rem' }}>
+              Bakery, Frozen, Canned Goods, Snacks, Other
+            </p>
+            <select
+              className='input'
+              value={preferences.defaultUnits?.countable || 'count'}
+              onChange={(e) => setPreferences(prev => ({
+                ...prev,
+                defaultUnits: { ...prev.defaultUnits, countable: e.target.value }
+              }))}
+              style={{ width: '100%' }}
+            >
+              {COUNTABLE_UNITS.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
           </div>
         </div>
       </section>

@@ -535,15 +535,26 @@ body {
 .badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
   min-width: 40px;
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;
   background: var(--primary-10);
   border: 1px solid var(--border);
-  font-weight: 700;
   color: var(--text);
+  font-size: 0.85rem;
+}
+
+.badge-low {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.unit-label {
+  font-weight: 400;
+  opacity: 0.6;
 }
 
 .actions {
@@ -576,7 +587,7 @@ body {
 }
 .modal {
   width: 100%;
-  max-width: 540px;
+  max-width: 800px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -597,6 +608,8 @@ body {
 .modal-body {
   padding: 16px;
   background: var(--bg-elev);
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .macro-grid {

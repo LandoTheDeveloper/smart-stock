@@ -7,7 +7,7 @@ type Activity = {
   qty: number;
   unit: string;
   expires: string;
-  status: 'ok' | 'warn' | 'danger';
+  status: 'ok' | 'warn' | 'danger' | 'expired';
 };
 
 type LowStockItem = {
@@ -250,6 +250,8 @@ export default function Dashboard() {
                       ? 'OK'
                       : r.status === 'warn'
                       ? 'Soon'
+                      : r.status === 'expired'
+                      ? 'Expired'
                       : 'Urgent'}
                   </span>
                 </div>

@@ -1,6 +1,12 @@
 import mongoose, { Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export interface IDefaultUnits {
+  solid: string;
+  liquid: string;
+  countable: string;
+}
+
 export interface IUserPreferences {
   dietaryPreferences: string[];
   allergies: string[];
@@ -9,6 +15,7 @@ export interface IUserPreferences {
   calorieTarget: number;
   proteinTarget: number;
   cuisinePreferences: string;
+  defaultUnits: IDefaultUnits;
 }
 
 export interface IUser extends Document {
@@ -103,6 +110,11 @@ const userSchema = new mongoose.Schema<IUser>(
       calorieTarget: { type: Number, default: 0 },
       proteinTarget: { type: Number, default: 0 },
       cuisinePreferences: { type: String, default: '' },
+      defaultUnits: {
+        solid: { type: String, default: 'g' },
+        liquid: { type: String, default: 'ml' },
+        countable: { type: String, default: 'count' },
+      },
     },
 
     households: [
