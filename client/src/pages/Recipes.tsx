@@ -760,21 +760,21 @@ export default function Recipes() {
 
                       <div className='recipe-actions'>
                         <button className='btn-primary' onClick={() => setActive(r)}>View</button>
-                        {getMissingIngredients(r.ingredients).length > 0 ? (
+                        <button
+                          className='btn-soft'
+                          onClick={() => handleSaveRecipe(r)}
+                          disabled={saving === r.id}
+                        >
+                          {saving === r.id ? 'Saving...' : 'Save'}
+                        </button>
+                        {getMissingIngredients(r.ingredients).length > 0 && (
                           <button
-                            className='btn-soft'
+                            className='btn-outline btn-sm'
                             onClick={() => handleSaveAndAddMissing(r)}
                             disabled={saving === r.id}
+                            title='Save recipe and add missing ingredients to shopping list'
                           >
-                            {saving === r.id ? 'Saving...' : 'Save & Add Missing'}
-                          </button>
-                        ) : (
-                          <button
-                            className='btn-soft'
-                            onClick={() => handleSaveRecipe(r)}
-                            disabled={saving === r.id}
-                          >
-                            {saving === r.id ? 'Saving...' : 'Save'}
+                            Save & Add Missing
                           </button>
                         )}
                       </div>
@@ -942,21 +942,21 @@ export default function Recipes() {
                               >
                                 View
                               </button>
-                              {getMissingIngredients(recipe.ingredients).length > 0 ? (
+                              <button
+                                className='btn-primary btn-sm'
+                                onClick={() => handleSaveFromHistory(recipe)}
+                                disabled={saving === recipe.id}
+                              >
+                                {saving === recipe.id ? 'Saving...' : 'Save'}
+                              </button>
+                              {getMissingIngredients(recipe.ingredients).length > 0 && (
                                 <button
-                                  className='btn-primary btn-sm'
+                                  className='btn-outline btn-sm'
                                   onClick={() => handleSaveAndAddMissing(recipe)}
                                   disabled={saving === recipe.id}
+                                  title='Save recipe and add missing ingredients to shopping list'
                                 >
-                                  {saving === recipe.id ? 'Saving...' : 'Save & Add Missing'}
-                                </button>
-                              ) : (
-                                <button
-                                  className='btn-primary btn-sm'
-                                  onClick={() => handleSaveFromHistory(recipe)}
-                                  disabled={saving === recipe.id}
-                                >
-                                  {saving === recipe.id ? 'Saving...' : 'Save'}
+                                  Save & Add Missing
                                 </button>
                               )}
                             </div>
@@ -1042,15 +1042,7 @@ export default function Recipes() {
                   </button>
                 </>
               ) : (
-                getMissingIngredients(active.ingredients).length > 0 ? (
-                  <button
-                    className='btn-soft'
-                    onClick={() => handleSaveAndAddMissing(active as GeneratedRecipe)}
-                    disabled={saving === active.id}
-                  >
-                    {saving === active.id ? 'Saving...' : 'Save & Add Missing to List'}
-                  </button>
-                ) : (
+                <>
                   <button
                     className='btn-soft'
                     onClick={() => handleSaveRecipe(active as GeneratedRecipe)}
@@ -1058,7 +1050,17 @@ export default function Recipes() {
                   >
                     {saving === active.id ? 'Saving...' : 'Save Recipe'}
                   </button>
-                )
+                  {getMissingIngredients(active.ingredients).length > 0 && (
+                    <button
+                      className='btn-outline'
+                      onClick={() => handleSaveAndAddMissing(active as GeneratedRecipe)}
+                      disabled={saving === active.id}
+                      title='Save recipe and add missing ingredients to shopping list'
+                    >
+                      {saving === active.id ? 'Saving...' : 'Save & Add Missing'}
+                    </button>
+                  )}
+                </>
               )}
               <button className='btn-primary' onClick={() => setActive(null)}>Done</button>
             </div>

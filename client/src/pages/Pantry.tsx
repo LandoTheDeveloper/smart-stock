@@ -504,15 +504,22 @@ export default function Pantry() {
           <div className='table-title' style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             Pantry
             {items.filter(i => isLowStock(i.quantity, i.unit || 'count', lowStockThresholds)).length > 0 && (
-              <span
-                className='pill danger'
-                style={{ fontSize: '0.75rem', cursor: 'pointer' }}
-                onClick={() => { setEditThresholds(lowStockThresholds); setShowThresholdModal(true); }}
-                title='Click to adjust thresholds'
-              >
+              <span className='pill danger' style={{ fontSize: '0.75rem' }}>
                 {items.filter(i => isLowStock(i.quantity, i.unit || 'count', lowStockThresholds)).length} low stock
               </span>
             )}
+            <button
+              className='btn-outline btn-sm'
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', gap: '0.25rem', display: 'inline-flex', alignItems: 'center' }}
+              onClick={() => { setEditThresholds(lowStockThresholds); setShowThresholdModal(true); }}
+              title='Adjust low stock thresholds'
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 1v2M8 13v2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M1 8h2M13 8h2M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/>
+                <circle cx="8" cy="8" r="3"/>
+              </svg>
+              Thresholds
+            </button>
           </div>
           <div className='table-actions' style={{ alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <input
