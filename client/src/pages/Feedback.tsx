@@ -16,10 +16,6 @@ export default function FeedbackButton() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Don't render anything if user is not admin
-  if (!user || user.role !== 'admin') {
-    return null;
-  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
