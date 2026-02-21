@@ -1,7 +1,25 @@
 import { Request, Response } from 'express';
 import ShoppingListItem from '../models/ShoppingListItem';
 import PantryItem from '../models/PantryItem';
+import User from '../models/User';
 import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '../utils/household.utils';
+
+const SOLID_TO_GRAMS: Record<string, number> = {
+  g: 1, kg: 1000, oz: 28.3495, lb: 453.592,
+};
+const LIQUID_TO_ML: Record<string, number> = {
+  ml: 1, L: 1000, cups: 236.588, oz: 29.5735, tbsp: 14.787, tsp: 4.929,
+};
+
+function isLowStock(quantity: number, unit: string, thresholds: { solid: number; liquid: number; countable: number }) {
+  if (SOLID_TO_GRAMS[unit]) {
+    return quantity * SOLID_TO_GRAMS[unit] <= thresholds.solid;
+  }
+  if (LIQUID_TO_ML[unit]) {
+    return quantity * LIQUID_TO_ML[unit] <= thresholds.liquid;
+  }
+  return quantity <= thresholds.countable;
+}
 
 export const getAllItems = async (req: Request, res: Response) => {
   try {
@@ -276,8 +294,11 @@ export const generateFromLowStock = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
 
-    const pantryQuery = { ...buildHouseholdQuery(context), quantity: { $lte: 2 } };
-    const lowStockItems = await PantryItem.find(pantryQuery);
+    const user = await User.findById(userId);
+    const thresholds = user?.preferences?.lowStockThresholds || { solid: 200, liquid: 500, countable: 2 };
+
+    const allPantryItems = await PantryItem.find(buildHouseholdQuery(context));
+    const lowStockItems = allPantryItems.filter(item => isLowStock(item.quantity, item.unit || 'count', thresholds));
 
     if (lowStockItems.length === 0) {
       return res.json({

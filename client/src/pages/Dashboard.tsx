@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 
 type Activity = {
@@ -17,10 +18,20 @@ type LowStockItem = {
   unit: string;
 };
 
+type ExpiringSoonItem = {
+  id: string;
+  item: string;
+  qty: number;
+  unit: string;
+  expires: string;
+  daysLeft: number | null;
+};
+
 type OverviewData = {
   lowStock: number;
   lowStockItems: LowStockItem[];
   expiringSoon: number;
+  expiringSoonItems: ExpiringSoonItem[];
   pantrySize: number;
   recentActivity: Activity[];
   locationCounts: Record<string, number>;
@@ -33,6 +44,7 @@ export default function Dashboard() {
     lowStock: 0,
     lowStockItems: [],
     expiringSoon: 0,
+    expiringSoonItems: [],
     pantrySize: 0,
     recentActivity: [],
     locationCounts: {},
@@ -67,6 +79,7 @@ export default function Dashboard() {
     return data.recentActivity.filter((row) => row.item.toLowerCase().includes(s));
   }, [q, data.recentActivity]);
 
+  const nav = useNavigate();
   const { lowStock, expiringSoon, pantrySize, locationCounts, categoryCounts } = data;
 
   const topCategories = useMemo(() => {
@@ -132,6 +145,41 @@ export default function Dashboard() {
           font-size: 0.85rem;
           color: #6b726d;
         }
+        .dash-item-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+          margin-top: 0.5rem;
+        }
+        .dash-item-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.85rem;
+          padding: 0.25rem 0;
+          border-bottom: 1px solid var(--border);
+        }
+        .dash-item-row:last-child {
+          border-bottom: none;
+        }
+        .dash-item-name {
+          flex: 1;
+          font-weight: 500;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .dash-item-qty {
+          color: #dc2626;
+          font-weight: 700;
+          font-size: 0.8rem;
+          white-space: nowrap;
+        }
+        .dash-item-detail {
+          color: var(--muted);
+          font-size: 0.8rem;
+          white-space: nowrap;
+        }
         .dashboard-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -149,17 +197,59 @@ export default function Dashboard() {
         <div className='card'>
           <div className='card-title'>Low Stock</div>
           <div className='card-kpi'>{lowStock} items</div>
-          <div className='card-sub'>Needs restock soon</div>
+          {data.lowStockItems.length > 0 ? (
+            <div className='dash-item-list'>
+              {data.lowStockItems.map((it) => (
+                <div key={it.id} className='dash-item-row'>
+                  <span className='dash-item-name'>{it.item}</span>
+                  <span className='dash-item-qty'>{it.qty} {it.unit}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className='card-sub'>All stocked up</div>
+          )}
         </div>
         <div className='card'>
           <div className='card-title'>Expiring Soon</div>
           <div className='card-kpi'>{expiringSoon}</div>
-          <div className='card-sub'>Within 5 days</div>
+          {data.expiringSoonItems.length > 0 ? (
+            <div className='dash-item-list'>
+              {data.expiringSoonItems.map((it) => (
+                <div key={it.id} className='dash-item-row'>
+                  <span className='dash-item-name'>{it.item}</span>
+                  <span className='dash-item-detail'>
+                    {it.daysLeft != null && it.daysLeft < 0
+                      ? 'Expired'
+                      : it.daysLeft === 0
+                      ? 'Today'
+                      : `${it.daysLeft}d left`}
+                  </span>
+                  <button
+                    className='btn-soft btn-sm'
+                    style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                    onClick={() => nav('/recipes?tab=generate&prompt=' + encodeURIComponent(`Use ${it.item}`))}
+                  >
+                    Use in recipe
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className='card-sub'>Nothing expiring soon</div>
+          )}
         </div>
         <div className='card'>
           <div className='card-title'>Pantry Size</div>
           <div className='card-kpi'>{pantrySize}</div>
           <div className='card-sub'>Total tracked items</div>
+          <button
+            className='btn-primary'
+            style={{ marginTop: '0.75rem', width: '100%' }}
+            onClick={() => nav('/recipes?tab=generate')}
+          >
+            Cook something now
+          </button>
         </div>
       </section>
 
