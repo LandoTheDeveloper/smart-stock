@@ -61,7 +61,7 @@ const topLowStockItems = [...lowStockItems] // avoid mutating lowStockItems
 
     const expiringSoonItems = allItems.filter(item => {
       if (!item.expirationDate) return false;
-      return item.expirationDate <= fiveDaysFromNow;
+      return item.expirationDate >= now && item.expirationDate <= fiveDaysFromNow;
     });
 
     const topExpiringSoonItems = [...expiringSoonItems]
