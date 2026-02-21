@@ -1,12 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { FaComment, FaTimes } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
 import './Auth.css';
 
 type FeedbackType = 'ui' | 'bug' | 'workflow' | 'feature';
 
 export default function FeedbackButton() {
-  const { user } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [type, setType] = useState<FeedbackType>('bug');
   const [title, setTitle] = useState('');
