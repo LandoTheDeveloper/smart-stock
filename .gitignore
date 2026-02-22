@@ -12,3 +12,4 @@
 **/*.test.ts
 **/*.test.tsx
 client/.env
+.DS_Store
