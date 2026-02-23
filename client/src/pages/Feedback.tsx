@@ -1,12 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { FaComment, FaTimes } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
 import './Auth.css';
 
 type FeedbackType = 'ui' | 'bug' | 'workflow' | 'feature';
 
 export default function FeedbackButton() {
-  const { user } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [type, setType] = useState<FeedbackType>('bug');
   const [title, setTitle] = useState('');
@@ -16,10 +14,6 @@ export default function FeedbackButton() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Don't render anything if user is not admin
-  if (!user || user.role !== 'admin') {
-    return null;
-  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
