@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import logo from '../assets/SmartStockLogo.png';
+import logo from '../assets/SmartStockLogo.webp';
 import './Auth.css';
 
 export default function VerifyEmail() {

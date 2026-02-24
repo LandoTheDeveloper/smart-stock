@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import logo from '../assets/SmartStockLogo.png';
+import logo from '../assets/SmartStockLogo.webp';
 import './Auth.css';
 
 export default function CheckEmail() {

@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import './Auth.css';
-import logo from '../assets/SmartStockLogo.png';
+import logo from '../assets/SmartStockLogo.webp';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 export default function Signup() {
