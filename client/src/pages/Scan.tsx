@@ -16,7 +16,13 @@ const STORAGE_LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Counter'] as const;
 type Category = (typeof CATEGORIES)[number];
 type StorageLocation = (typeof STORAGE_LOCATIONS)[number];
 
-// Shelf life databases (matching mobile implementation)
+interface ParsedReceiptItem {
+  name: string;
+  quantity: number;
+  unit?: string;
+  expected_expiration?: string;
+}
+
 const PRODUCT_SHELF_LIVES: Record<string, number> = {
   'milk': 7, 'whole milk': 7, 'skim milk': 7, '2% milk': 7, 'almond milk': 10, 'oat milk': 10,
   'yogurt': 14, 'greek yogurt': 14, 'butter': 90, 'cream cheese': 21, 'cheese': 30,
@@ -166,6 +172,18 @@ export default function Scan() {
     storageLocation: 'Pantry' as StorageLocation,
   });
 
+  const [receiptItems, setReceiptItems] = useState<ParsedReceiptItem[]>([]);
+  const [currentReceiptIndex, setCurrentReceiptIndex] = useState(0);
+  const [receiptEditing, setReceiptEditing] = useState(false);
+  const [receiptForm, setReceiptForm] = useState({
+    name: '',
+    quantity: '1',
+    unit: 'count',
+    expirationDate: '',
+    category: '' as Category | '',
+    storageLocation: 'Pantry' as StorageLocation,
+  });
+
   useEffect(() => {
     api.get<{ success: boolean; data: { defaultUnits?: DefaultUnits } }>('/api/user/preferences')
       .then(res => {
@@ -174,6 +192,18 @@ export default function Scan() {
         }
       })
       .catch(() => {});
+  }, []);
+
+  const populateReceiptForm = useCallback((item: ParsedReceiptItem) => {
+    setReceiptForm({
+      name: item.name || '',
+      quantity: String(item.quantity || 1),
+      unit: item.unit || 'count',
+      expirationDate: item.expected_expiration || '',
+      category: '',
+      storageLocation: 'Pantry',
+    });
+    setReceiptEditing(false);
   }, []);
 
   const fetchProduct = useCallback(async (barcode: string) => {
@@ -269,9 +299,7 @@ export default function Scan() {
             fetchProduct(barcodes[0].rawValue);
             return;
           }
-        } catch {
-          // detection miss
-        }
+        } catch {}
         rafRef.current = requestAnimationFrame(detect);
       };
 
@@ -328,12 +356,12 @@ export default function Scan() {
   useEffect(() => {
     if (mode === 'camera' && !scannedBarcode && !successMsg) {
       startScanner();
-    } else if (mode === 'receipt' && !successMsg) {
+    } else if (mode === 'receipt' && receiptItems.length === 0 && !successMsg) {
       startReceiptCamera();
     }
 
     return () => { stopScanner(); };
-  }, [mode, scannedBarcode, successMsg, startScanner, startReceiptCamera, stopScanner]);
+  }, [mode, scannedBarcode, successMsg, receiptItems.length, startScanner, startReceiptCamera, stopScanner]);
 
   const handleManualLookup = () => {
     const barcode = manualBarcode.trim();
@@ -348,6 +376,17 @@ export default function Scan() {
     setSuccessMsg('');
     setCameraError('');
     setReceiptUploading(false);
+    setReceiptItems([]);
+    setCurrentReceiptIndex(0);
+    setReceiptEditing(false);
+    setReceiptForm({
+      name: '',
+      quantity: '1',
+      unit: 'count',
+      expirationDate: '',
+      category: '',
+      storageLocation: 'Pantry',
+    });
     setFormData({
       name: '',
       quantity: '1',
@@ -406,40 +445,80 @@ export default function Scan() {
     }
   };
 
+  const moveToNextReceiptItem = useCallback(() => {
+    const nextIndex = currentReceiptIndex + 1;
+
+    if (nextIndex >= receiptItems.length) {
+      setReceiptItems([]);
+      setCurrentReceiptIndex(0);
+      setReceiptEditing(false);
+      setSuccessMsg('All receipt items added to pantry!');
+      return;
+    }
+
+    setCurrentReceiptIndex(nextIndex);
+    populateReceiptForm(receiptItems[nextIndex]);
+  }, [currentReceiptIndex, receiptItems, populateReceiptForm]);
+
+  const handleAddReceiptItem = async () => {
+    if (!receiptForm.name.trim()) return;
+
+    setSaving(true);
+    try {
+      await api.post('/api/pantry', {
+        name: receiptForm.name.trim(),
+        quantity: parseInt(receiptForm.quantity) || 1,
+        unit: receiptForm.unit || undefined,
+        expirationDate: receiptForm.expirationDate || undefined,
+        category: receiptForm.category || undefined,
+        storageLocation: receiptForm.storageLocation || 'Pantry',
+      });
+
+      moveToNextReceiptItem();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to add item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSkipReceiptItem = () => {
+    moveToNextReceiptItem();
+  };
+
   const uploadReceiptFile = useCallback(async (file: File) => {
     setReceiptUploading(true);
     setLookupError('');
     setCameraError('');
+    setSuccessMsg('');
 
     try {
       const formData = new FormData();
       formData.append('receipt', file);
 
-      const res = await api.post('/api/receipt/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const res = await api.post('/api/receipt/upload', formData);
+      const groceries: ParsedReceiptItem[] = res.data?.groceries || [];
 
-      const importedCount =
-        res.data?.importedCount ??
-        res.data?.data?.length ??
-        res.data?.groceries?.length ??
-        0;
+      if (!groceries.length) {
+        alert('No items were found on the receipt.');
+        return;
+      }
 
-      setSuccessMsg(
-        importedCount > 0
-          ? `Receipt processed! ${importedCount} item${importedCount === 1 ? '' : 's'} added to pantry.`
-          : 'Receipt processed and pantry updated.'
-      );
-
+      setReceiptItems(groceries);
+      setCurrentReceiptIndex(0);
+      populateReceiptForm(groceries[0]);
       stopScanner();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to upload receipt');
+      console.error('Receipt upload error:', err.response?.data || err);
+      alert(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Failed to upload receipt'
+      );
     } finally {
       setReceiptUploading(false);
     }
-  }, [stopScanner]);
+  }, [populateReceiptForm, stopScanner]);
 
   const handleCaptureReceipt = useCallback(async () => {
     const video = videoRef.current;
@@ -493,6 +572,8 @@ export default function Scan() {
     }
   };
 
+  const currentReceiptItem = receiptItems[currentReceiptIndex];
+
   return (
     <>
       <style>{`
@@ -527,8 +608,13 @@ export default function Scan() {
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
         .receipt-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin-top: 1rem; }
         .receipt-help { color: var(--muted); font-size: 0.9rem; text-align: center; margin-top: 0.75rem; }
+        .receipt-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem; }
+        .receipt-summary-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; }
+        .receipt-summary-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+        .receipt-summary-value { font-weight: 600; }
         @media (max-width: 600px) {
           .form-grid { grid-template-columns: 1fr; }
+          .receipt-summary-grid { grid-template-columns: 1fr; }
           .product-card { flex-direction: column; align-items: center; text-align: center; }
           .nutri-badges { justify-content: center; }
         }
@@ -638,7 +724,7 @@ export default function Scan() {
           </div>
         )}
 
-        {!successMsg && mode === 'receipt' && (
+        {!successMsg && mode === 'receipt' && receiptItems.length === 0 && (
           <div className="card">
             <div style={{ fontWeight: 600, marginBottom: '1rem', textAlign: 'center' }}>
               Scan Receipt
@@ -697,6 +783,157 @@ export default function Scan() {
             <div className="receipt-help">
               Line up the receipt inside the frame, make sure the text is clear, then take the picture.
             </div>
+          </div>
+        )}
+
+        {!successMsg && mode === 'receipt' && currentReceiptItem && (
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <div style={{ fontWeight: 700 }}>Review Receipt Item</div>
+              <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+                Item {currentReceiptIndex + 1} of {receiptItems.length}
+              </div>
+            </div>
+
+            {!receiptEditing ? (
+              <>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                  {receiptForm.name || 'Unnamed item'}
+                </div>
+
+                <div className="receipt-summary-grid">
+                  <div className="receipt-summary-item">
+                    <div className="receipt-summary-label">Quantity</div>
+                    <div className="receipt-summary-value">{receiptForm.quantity || '—'}</div>
+                  </div>
+
+                  <div className="receipt-summary-item">
+                    <div className="receipt-summary-label">Unit</div>
+                    <div className="receipt-summary-value">{receiptForm.unit || '—'}</div>
+                  </div>
+
+                  <div className="receipt-summary-item">
+                    <div className="receipt-summary-label">Expiration Date</div>
+                    <div className="receipt-summary-value">{receiptForm.expirationDate || '—'}</div>
+                  </div>
+
+                  <div className="receipt-summary-item">
+                    <div className="receipt-summary-label">Category</div>
+                    <div className="receipt-summary-value">{receiptForm.category || '—'}</div>
+                  </div>
+
+                  <div className="receipt-summary-item">
+                    <div className="receipt-summary-label">Storage Location</div>
+                    <div className="receipt-summary-value">{receiptForm.storageLocation || '—'}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-outline" onClick={handleSkipReceiptItem}>
+                    Skip
+                  </button>
+                  <button type="button" className="btn-outline" onClick={() => setReceiptEditing(true)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn-primary" onClick={handleAddReceiptItem} disabled={saving || !receiptForm.name.trim()}>
+                    {saving ? 'Saving...' : 'Add to Pantry'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>Edit Item Details</div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Item Name *</label>
+                    <input
+                      className="input"
+                      required
+                      value={receiptForm.name}
+                      onChange={e => setReceiptForm(p => ({ ...p, name: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-grid">
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Quantity</label>
+                      <input
+                        className="input"
+                        type="number"
+                        min="1"
+                        value={receiptForm.quantity}
+                        onChange={e => setReceiptForm(p => ({ ...p, quantity: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Unit</label>
+                      <select
+                        className="input"
+                        value={receiptForm.unit}
+                        onChange={e => setReceiptForm(p => ({ ...p, unit: e.target.value }))}
+                      >
+                        {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-grid">
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Category</label>
+                      <select
+                        className="input"
+                        value={receiptForm.category}
+                        onChange={e => {
+                          const cat = e.target.value as Category;
+                          setReceiptForm(p => ({
+                            ...p,
+                            category: cat,
+                            unit: cat ? getDefaultUnit(cat, defaultUnits) : p.unit,
+                          }));
+                        }}
+                      >
+                        <option value="">Select...</option>
+                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Storage Location</label>
+                      <select
+                        className="input"
+                        value={receiptForm.storageLocation}
+                        onChange={e => setReceiptForm(p => ({ ...p, storageLocation: e.target.value as StorageLocation }))}
+                      >
+                        {STORAGE_LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Expiration Date</label>
+                    <input
+                      className="input"
+                      type="date"
+                      value={receiptForm.expirationDate}
+                      onChange={e => setReceiptForm(p => ({ ...p, expirationDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-outline" onClick={handleSkipReceiptItem}>
+                    Skip
+                  </button>
+                  <button type="button" className="btn-outline" onClick={() => setReceiptEditing(false)}>
+                    Cancel Edit
+                  </button>
+                  <button type="button" className="btn-primary" onClick={handleAddReceiptItem} disabled={saving || !receiptForm.name.trim()}>
+                    {saving ? 'Saving...' : 'Add to Pantry'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

@@ -3,36 +3,11 @@ import fs from "fs/promises";
 
 import { extractText } from "../services/ocrService";
 import { parseReceipt } from "../services/receiptAIService";
-import PantryItem from "../models/PantryItem";
-import {
-  getHouseholdContext,
-  buildItemAttribution,
-} from "../utils/household.utils";
 
 export async function uploadReceiptController(req: Request, res: Response) {
   let filePath: string | undefined;
 
   try {
-    const userId =
-      (req as any).userId ||
-      (req.user as any)?._id ||
-      (req.user as any)?.id;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    const context = await getHouseholdContext(userId);
-    if (!context) {
-      return res.status(401).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -52,32 +27,10 @@ export async function uploadReceiptController(req: Request, res: Response) {
       });
     }
 
-    const savedItems = [];
-
-    for (const grocery of groceries) {
-      if (!grocery?.name) continue;
-
-      const newItem = new PantryItem({
-        ...buildItemAttribution(context),
-        name: grocery.name,
-        quantity: grocery.quantity || 1,
-        unit: grocery.unit,
-        expirationDate: grocery.expected_expiration
-          ? new Date(grocery.expected_expiration)
-          : undefined,
-        storageLocation: "Pantry",
-      });
-
-      await newItem.save();
-      savedItems.push(newItem);
-    }
-
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: "Receipt processed and pantry items added successfully",
+      message: "Receipt parsed successfully",
       groceries,
-      importedCount: savedItems.length,
-      data: savedItems,
     });
   } catch (err: any) {
     console.error("Receipt upload failed:", err);
