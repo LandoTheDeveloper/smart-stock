@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './dashboard-theme.css';
-import logo from '../assets/SmartStockLogo.png';
+import logo from '../assets/SmartStockLogo80x80.webp';
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
@@ -35,10 +35,10 @@ export default function DashboardLayout() {
     <div className='dash-root'>
       {/* Mobile header with hamburger menu */}
       <header className='mobile-header'>
-        <button className='hamburger-btn' onClick={() => setSidebarOpen(!sidebarOpen)}>
-          <span></span>
-          <span></span>
-          <span></span>
+        <button className='hamburger-btn' role="button" aria-label="hamburger button" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
         </button>
         <div className='mobile-brand'>
           <img src={logo} alt='SmartStock' className='mobile-logo' />

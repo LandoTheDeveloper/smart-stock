@@ -246,6 +246,11 @@ export default function Scan() {
     }
   }, [defaultUnits]);
 
+  // Use a ref for fetchProduct so startScanner doesn't need to re-create
+  // when defaultUnits changes (avoids race condition on mount)
+  const fetchProductRef = useRef(fetchProduct);
+  fetchProductRef.current = fetchProduct;
+
   const stopScanner = useCallback(() => {
     scanningRef.current = false;
     cancelAnimationFrame(rafRef.current);
@@ -265,20 +270,45 @@ export default function Scan() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       });
+
+      // If this invocation was superseded by cleanup, stop the stream and bail
+      if (streamRef.current && streamRef.current !== stream) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
       streamRef.current = stream;
 
       await new Promise(r => setTimeout(r, 100));
       const video = videoRef.current;
+      // Wait for video element to be available (poll instead of fixed timeout)
+      let video: HTMLVideoElement | null = null;
+      for (let i = 0; i < 20; i++) {
+        video = videoRef.current;
+        if (video) break;
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      // Check if superseded during wait
+      if (streamRef.current !== stream) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
       if (!video) { stopScanner(); return; }
 
       video.srcObject = stream;
       try {
         await video.play();
       } catch {
+        // Check if superseded before setting error
+        if (streamRef.current !== stream) return;
         stopScanner();
-        setCameraError('No camera found on this device. Use manual entry instead.');
+        setCameraError('Could not start camera. Try switching to Manual Entry and back, or check browser permissions.');
         return;
       }
+
+      // Final stale check before starting detection loop
+      if (streamRef.current !== stream) return;
 
       detectorRef.current = new BarcodeDetector({
         formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39'],
@@ -296,7 +326,7 @@ export default function Scan() {
           const barcodes = await detectorRef.current!.detect(video);
           if (barcodes.length > 0) {
             stopScanner();
-            fetchProduct(barcodes[0].rawValue);
+            fetchProductRef.current(barcodes[0].rawValue);
             return;
           }
         } catch {}
@@ -314,7 +344,10 @@ export default function Scan() {
         setCameraError(`Could not start camera: ${msg}`);
       }
     }
-  }, [stopScanner, fetchProduct]);
+  }, [stopScanner]);
+
+  const startScannerRef = useRef(startScanner);
+  startScannerRef.current = startScanner;
 
   const startReceiptCamera = useCallback(async () => {
     setCameraError('');
@@ -358,10 +391,12 @@ export default function Scan() {
       startScanner();
     } else if (mode === 'receipt' && receiptItems.length === 0 && !successMsg) {
       startReceiptCamera();
+      startScannerRef.current();
     }
 
     return () => { stopScanner(); };
   }, [mode, scannedBarcode, successMsg, receiptItems.length, startScanner, startReceiptCamera, stopScanner]);
+  }, [mode, scannedBarcode, successMsg, stopScanner]);
 
   const handleManualLookup = () => {
     const barcode = manualBarcode.trim();

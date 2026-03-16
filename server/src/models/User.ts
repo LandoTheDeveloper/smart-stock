@@ -7,6 +7,12 @@ export interface IDefaultUnits {
   countable: string;
 }
 
+export interface ILowStockThresholds {
+  solid: number;    // in grams
+  liquid: number;   // in ml
+  countable: number; // count
+}
+
 export interface IUserPreferences {
   dietaryPreferences: string[];
   allergies: string[];
@@ -16,6 +22,7 @@ export interface IUserPreferences {
   proteinTarget: number;
   cuisinePreferences: string;
   defaultUnits: IDefaultUnits;
+  lowStockThresholds: ILowStockThresholds;
 }
 
 export interface IUser extends Document {
@@ -114,6 +121,11 @@ const userSchema = new mongoose.Schema<IUser>(
         solid: { type: String, default: 'g' },
         liquid: { type: String, default: 'ml' },
         countable: { type: String, default: 'count' },
+      },
+      lowStockThresholds: {
+        solid: { type: Number, default: 200 },     // 200g
+        liquid: { type: Number, default: 500 },    // 500ml
+        countable: { type: Number, default: 2 },   // 2 items
       },
     },
 

@@ -29,6 +29,7 @@ app.use(
       'http://localhost:5173',
       'http://localhost:5174',
       'https://smart-stock.food',
+      'http://localhost:4173',
       // TODO: REMOVE, MOBILE DEV ONLY
       'https://nonedified-bailey-slangily.ngrok-free.dev',
       'http://nonedified-bailey-slangily.ngrok-free.dev'

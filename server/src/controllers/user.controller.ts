@@ -41,7 +41,8 @@ export const getPreferences = async (req: Request, res: Response) => {
         calorieTarget: 0,
         proteinTarget: 0,
         cuisinePreferences: '',
-        defaultUnits: { solid: 'g', liquid: 'ml', countable: 'count' }
+        defaultUnits: { solid: 'g', liquid: 'ml', countable: 'count' },
+        lowStockThresholds: { solid: 200, liquid: 500, countable: 2 }
       }
     });
   } catch (error: any) {
@@ -73,7 +74,8 @@ export const updatePreferences = async (req: Request, res: Response) => {
       calorieTarget,
       proteinTarget,
       cuisinePreferences,
-      defaultUnits
+      defaultUnits,
+      lowStockThresholds
     } = req.body;
 
     const user = await User.findById(userId);
@@ -85,25 +87,32 @@ export const updatePreferences = async (req: Request, res: Response) => {
       });
     }
 
-    const newDefaults = defaultUnits || { solid: 'g', liquid: 'ml', countable: 'count' };
+    const existingDefaults = user.preferences?.defaultUnits
+      ? { solid: user.preferences.defaultUnits.solid || 'g', liquid: user.preferences.defaultUnits.liquid || 'ml', countable: user.preferences.defaultUnits.countable || 'count' }
+      : { solid: 'g', liquid: 'ml', countable: 'count' };
+    const newDefaults = defaultUnits || existingDefaults;
+    const unitsChanged = defaultUnits !== undefined;
 
     user.preferences = {
-      dietaryPreferences: dietaryPreferences || [],
-      allergies: allergies || [],
-      customAllergies: customAllergies || '',
-      avoidIngredients: avoidIngredients || '',
-      calorieTarget: calorieTarget || 0,
-      proteinTarget: proteinTarget || 0,
-      cuisinePreferences: cuisinePreferences || '',
-      defaultUnits: newDefaults
+      dietaryPreferences: dietaryPreferences ?? user.preferences?.dietaryPreferences ?? [],
+      allergies: allergies ?? user.preferences?.allergies ?? [],
+      customAllergies: customAllergies ?? user.preferences?.customAllergies ?? '',
+      avoidIngredients: avoidIngredients ?? user.preferences?.avoidIngredients ?? '',
+      calorieTarget: calorieTarget ?? user.preferences?.calorieTarget ?? 0,
+      proteinTarget: proteinTarget ?? user.preferences?.proteinTarget ?? 0,
+      cuisinePreferences: cuisinePreferences ?? user.preferences?.cuisinePreferences ?? '',
+      defaultUnits: newDefaults,
+      lowStockThresholds: lowStockThresholds || (user.preferences?.lowStockThresholds
+        ? { solid: user.preferences.lowStockThresholds.solid ?? 200, liquid: user.preferences.lowStockThresholds.liquid ?? 500, countable: user.preferences.lowStockThresholds.countable ?? 2 }
+        : { solid: 200, liquid: 500, countable: 2 })
     };
 
     user.markModified('preferences');
     await user.save();
 
-    // Convert ALL existing pantry items to match new default units
+    // Convert ALL existing pantry items to match new default units (only if units were changed)
     const context = await getHouseholdContext(userId);
-    if (context) {
+    if (context && unitsChanged) {
       const baseQuery = buildHouseholdQuery(context);
 
       // Solid units: convert any non-target solid unit to the new default

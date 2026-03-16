@@ -42,6 +42,11 @@ type UserPreferences = {
     liquid: string;
     countable: string;
   };
+  lowStockThresholds: {
+    solid: number;
+    liquid: number;
+    countable: number;
+  };
 };
 
 type FeedbackItem = {
@@ -88,6 +93,11 @@ export default function Settings() {
       solid: 'g',
       liquid: 'ml',
       countable: 'count',
+    },
+    lowStockThresholds: {
+      solid: 200,
+      liquid: 500,
+      countable: 2,
     }
   });
 
@@ -476,6 +486,85 @@ export default function Settings() {
                 <option key={u} value={u}>{u}</option>
               ))}
             </select>
+          </div>
+        </div>
+      </section>
+
+      <section className='card'>
+        <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Low Stock Thresholds</h2>
+          <p style={{ margin: '0.5rem 0 0', color: 'var(--muted)', fontSize: '0.9rem' }}>
+            Items at or below these amounts will be flagged as low stock
+          </p>
+        </div>
+        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+              Solid Items
+            </label>
+            <p style={{ margin: '0 0 0.5rem', color: 'var(--muted)', fontSize: '0.8rem' }}>
+              Meat, Dairy, Produce — threshold in grams
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                className='input'
+                type='number'
+                min={0}
+                value={preferences.lowStockThresholds?.solid ?? 200}
+                onChange={(e) => setPreferences(prev => ({
+                  ...prev,
+                  lowStockThresholds: { ...prev.lowStockThresholds, solid: Number(e.target.value) || 0 }
+                }))}
+                style={{ width: '100%' }}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>grams</span>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+              Liquid Items
+            </label>
+            <p style={{ margin: '0 0 0.5rem', color: 'var(--muted)', fontSize: '0.8rem' }}>
+              Beverages, Condiments — threshold in milliliters
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                className='input'
+                type='number'
+                min={0}
+                value={preferences.lowStockThresholds?.liquid ?? 500}
+                onChange={(e) => setPreferences(prev => ({
+                  ...prev,
+                  lowStockThresholds: { ...prev.lowStockThresholds, liquid: Number(e.target.value) || 0 }
+                }))}
+                style={{ width: '100%' }}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>ml</span>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+              Countable Items
+            </label>
+            <p style={{ margin: '0 0 0.5rem', color: 'var(--muted)', fontSize: '0.8rem' }}>
+              Bakery, Canned Goods, Snacks — threshold in count
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                className='input'
+                type='number'
+                min={0}
+                value={preferences.lowStockThresholds?.countable ?? 2}
+                onChange={(e) => setPreferences(prev => ({
+                  ...prev,
+                  lowStockThresholds: { ...prev.lowStockThresholds, countable: Number(e.target.value) || 0 }
+                }))}
+                style={{ width: '100%' }}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>items</span>
+            </div>
           </div>
         </div>
       </section>

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { UNITS, getDefaultUnit } from '../lib/units';
-import type { DefaultUnits } from '../lib/units';
+import { UNITS, getDefaultUnit, isLowStock } from '../lib/units';
+import type { DefaultUnits, LowStockThresholds } from '../lib/units';
 
 // Shelf life utilities
 const PRODUCT_SHELF_LIVES: Record<string, number> = {
@@ -135,6 +135,9 @@ export default function Pantry() {
   const [sortBy, setSortBy] = useState<'location' | 'expires' | 'status' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [defaultUnits, setDefaultUnits] = useState<DefaultUnits | undefined>();
+  const [lowStockThresholds, setLowStockThresholds] = useState<LowStockThresholds>({ solid: 200, liquid: 500, countable: 2 });
+  const [showThresholdModal, setShowThresholdModal] = useState(false);
+  const [editThresholds, setEditThresholds] = useState<LowStockThresholds>({ solid: 200, liquid: 500, countable: 2 });
   const [newItem, setNewItem] = useState({
     name: '',
     quantity: 1,
@@ -151,12 +154,29 @@ export default function Pantry() {
 
   const fetchDefaultUnits = async () => {
     try {
-      const response = await api.get<{ success: boolean; data: { defaultUnits?: DefaultUnits } }>('/api/user/preferences');
-      if (response.data.success && response.data.data?.defaultUnits) {
-        setDefaultUnits(response.data.data.defaultUnits);
+      const response = await api.get<{ success: boolean; data: { defaultUnits?: DefaultUnits; lowStockThresholds?: LowStockThresholds } }>('/api/user/preferences');
+      if (response.data.success) {
+        if (response.data.data?.defaultUnits) {
+          setDefaultUnits(response.data.data.defaultUnits);
+        }
+        if (response.data.data?.lowStockThresholds) {
+          setLowStockThresholds(response.data.data.lowStockThresholds);
+          setEditThresholds(response.data.data.lowStockThresholds);
+        }
       }
     } catch (err) {
-      console.error('Failed to fetch default units:', err);
+      console.error('Failed to fetch preferences:', err);
+    }
+  };
+
+  const saveThresholds = async () => {
+    try {
+      await api.put('/api/user/preferences', { lowStockThresholds: editThresholds });
+      setLowStockThresholds(editThresholds);
+      setShowThresholdModal(false);
+    } catch (err) {
+      console.error('Failed to save thresholds:', err);
+      alert('Failed to save thresholds');
     }
   };
 
@@ -483,11 +503,23 @@ export default function Pantry() {
         <div className='table-header'>
           <div className='table-title' style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             Pantry
-            {items.filter(i => i.quantity <= 2).length > 0 && (
+            {items.filter(i => isLowStock(i.quantity, i.unit || 'count', lowStockThresholds)).length > 0 && (
               <span className='pill danger' style={{ fontSize: '0.75rem' }}>
-                {items.filter(i => i.quantity <= 2).length} low stock
+                {items.filter(i => isLowStock(i.quantity, i.unit || 'count', lowStockThresholds)).length} low stock
               </span>
             )}
+            <button
+              className='btn-outline btn-sm'
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', gap: '0.25rem', display: 'inline-flex', alignItems: 'center' }}
+              onClick={() => { setEditThresholds(lowStockThresholds); setShowThresholdModal(true); }}
+              title='Adjust low stock thresholds'
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 1v2M8 13v2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M1 8h2M13 8h2M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/>
+                <circle cx="8" cy="8" r="3"/>
+              </svg>
+              Thresholds
+            </button>
           </div>
           <div className='table-actions' style={{ alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <input
@@ -583,7 +615,7 @@ export default function Pantry() {
                   <div className='cell-sub'>
                     {it.category || 'Uncategorized'}
                     {it.nutrition && (it.nutrition.kcal != null || it.nutrition.nutriScore) && (
-                      <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }} title='per 100g'>
                         {it.nutrition.nutriScore && (
                           <span style={{
                             display: 'inline-flex',
@@ -617,6 +649,7 @@ export default function Pantry() {
                         {it.nutrition.fat != null && (
                           <span><span style={{ fontWeight: 600, color: '#f39c12' }}>{it.nutrition.fat.toFixed(0)}g</span> F</span>
                         )}
+                        <span style={{ opacity: 0.5 }}>/100g</span>
                       </span>
                     )}
                   </div>
@@ -634,7 +667,7 @@ export default function Pantry() {
                       style={{ width: 70 }}
                     />
                   ) : (
-                    <span className={`badge${it.quantity <= 2 ? ' badge-low' : ''}`}><strong>{it.quantity}</strong> <span className='unit-label'>{it.unit || 'count'}</span></span>
+                    <span className={`badge${isLowStock(it.quantity, it.unit || 'count', lowStockThresholds) ? ' badge-low' : ''}`}><strong>{it.quantity}</strong> <span className='unit-label'>{it.unit || 'count'}</span></span>
                   )}
                 </div>
                 <div>
@@ -912,11 +945,78 @@ export default function Pantry() {
         </div>
       )}
 
+      {showThresholdModal && (
+        <div className='modal-backdrop' onClick={() => setShowThresholdModal(false)}>
+          <div className='modal' onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className='modal-header'>
+              <div className='modal-title'>Low Stock Thresholds</div>
+              <button className='btn-outline' onClick={() => setShowThresholdModal(false)}>Close</button>
+            </div>
+            <div className='modal-body'>
+              <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: '0 0 1rem' }}>
+                Items at or below these amounts will be flagged as low stock.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                    Solid items (g, kg, oz, lb)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      className='input'
+                      type='number'
+                      min={0}
+                      value={editThresholds.solid}
+                      onChange={(e) => setEditThresholds(prev => ({ ...prev, solid: Number(e.target.value) || 0 }))}
+                    />
+                    <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>grams</span>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                    Liquid items (ml, L, cups, etc.)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      className='input'
+                      type='number'
+                      min={0}
+                      value={editThresholds.liquid}
+                      onChange={(e) => setEditThresholds(prev => ({ ...prev, liquid: Number(e.target.value) || 0 }))}
+                    />
+                    <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>ml</span>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                    Countable items (count, pcs, etc.)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      className='input'
+                      type='number'
+                      min={0}
+                      value={editThresholds.countable}
+                      onChange={(e) => setEditThresholds(prev => ({ ...prev, countable: Number(e.target.value) || 0 }))}
+                    />
+                    <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>items</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className='modal-footer'>
+              <button className='btn-outline' onClick={() => setShowThresholdModal(false)}>Cancel</button>
+              <button className='btn-primary' onClick={saveThresholds}>Save Thresholds</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {macroItem && macroItem.nutrition && (
         <div className='modal-backdrop' onClick={() => setMacroItem(null)}>
           <div className='modal' onClick={(e) => e.stopPropagation()}>
             <div className='modal-header'>
-              <div className='modal-title'>Nutrition — {macroItem.name}</div>
+              <div className='modal-title'>Nutrition — {macroItem.name} <span style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--muted)' }}>per 100g</span></div>
               <button
                 className='btn-outline'
                 onClick={() => setMacroItem(null)}

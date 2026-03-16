@@ -43,3 +43,53 @@ export function getDefaultUnit(category: string | undefined, prefs?: DefaultUnit
   const defaults = prefs || FALLBACK_DEFAULTS;
   return defaults[unitType];
 }
+
+export interface LowStockThresholds {
+  solid: number;    // in grams
+  liquid: number;   // in ml
+  countable: number; // count
+}
+
+const FALLBACK_THRESHOLDS: LowStockThresholds = {
+  solid: 200,
+  liquid: 500,
+  countable: 2,
+};
+
+// Conversion factors to base unit (grams for solid, ml for liquid)
+const SOLID_TO_GRAMS: Record<string, number> = {
+  g: 1, kg: 1000, oz: 28.3495, lb: 453.592,
+};
+
+const LIQUID_TO_ML: Record<string, number> = {
+  ml: 1, L: 1000, cups: 236.588, oz: 29.5735, tbsp: 14.787, tsp: 4.929,
+};
+
+export function getUnitType(unit: string): UnitType {
+  if (SOLID_TO_GRAMS[unit]) return 'solid';
+  if (LIQUID_TO_ML[unit]) return 'liquid';
+  return 'countable';
+}
+
+export function isLowStock(quantity: number, unit: string, thresholds?: LowStockThresholds): boolean {
+  const t = thresholds || FALLBACK_THRESHOLDS;
+  const unitType = getUnitType(unit);
+
+  if (unitType === 'solid') {
+    const inGrams = quantity * (SOLID_TO_GRAMS[unit] || 1);
+    return inGrams <= t.solid;
+  }
+  if (unitType === 'liquid') {
+    const inMl = quantity * (LIQUID_TO_ML[unit] || 1);
+    return inMl <= t.liquid;
+  }
+  return quantity <= t.countable;
+}
+
+export function getThresholdDisplay(unit: string, thresholds?: LowStockThresholds): string {
+  const t = thresholds || FALLBACK_THRESHOLDS;
+  const unitType = getUnitType(unit);
+  if (unitType === 'solid') return `${t.solid}g`;
+  if (unitType === 'liquid') return `${t.liquid}ml`;
+  return `${t.countable}`;
+}

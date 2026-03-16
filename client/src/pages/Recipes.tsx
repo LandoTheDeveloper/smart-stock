@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import axios from 'axios';
 
@@ -57,6 +58,7 @@ const TIME_FILTERS = [
 const COMMON_TAGS = ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'vegetarian', 'vegan', 'quick', 'healthy', 'low-carb', 'high-protein'];
 
 export default function Recipes() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<'generate' | 'saved' | 'history'>('saved');
   const [q, setQ] = useState('');
   const [tag, setTag] = useState<string | 'all'>('all');
@@ -84,6 +86,7 @@ export default function Recipes() {
   const [useExpiringFirst, setUseExpiringFirst] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  const [pantryItems, setPantryItems] = useState<{ name: string }[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRecipe, setNewRecipe] = useState({
     title: '',
@@ -99,9 +102,86 @@ export default function Recipes() {
   });
 
   useEffect(() => {
+    const paramTab = searchParams.get('tab');
+    const paramPrompt = searchParams.get('prompt');
+    if (paramTab === 'generate') {
+      setTab('generate');
+      if (paramPrompt) {
+        setUserPrompt(paramPrompt);
+      }
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
+
+  useEffect(() => {
     fetchSavedRecipes();
     fetchHistory();
+    fetchPantryItems();
   }, []);
+
+  const fetchPantryItems = async () => {
+    try {
+      const response = await api.get<{ success: boolean; data: { name: string }[] }>('/api/pantry');
+      if (response.data.success) {
+        setPantryItems(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pantry items:', err);
+    }
+  };
+
+  const getMissingIngredients = (ingredients: Ingredient[]) => {
+    const pantryNames = pantryItems.map(p => p.name.toLowerCase().trim());
+    return ingredients.filter(ing => {
+      const ingName = ing.name.toLowerCase().trim();
+      return !pantryNames.some(pn => pn.includes(ingName) || ingName.includes(pn));
+    });
+  };
+
+  const handleSaveAndAddMissing = async (recipe: GeneratedRecipe) => {
+    setSaving(recipe.id);
+    try {
+      // Save the recipe
+      const response = await api.post<{ success: boolean; data: SavedRecipe }>('/api/recipes', {
+        title: recipe.title,
+        minutes: recipe.minutes,
+        servings: recipe.servings,
+        tags: recipe.tags,
+        kcal: recipe.kcal,
+        protein: recipe.protein,
+        carbs: recipe.carbs,
+        fat: recipe.fat,
+        ingredients: recipe.ingredients,
+        steps: recipe.steps,
+        isCustom: false
+      });
+      if (response.data.success) {
+        setSavedRecipes(prev => [response.data.data, ...prev]);
+      }
+
+      // Add missing ingredients to shopping list
+      const missing = getMissingIngredients(recipe.ingredients);
+      if (missing.length > 0) {
+        await Promise.all(
+          missing.map(ing =>
+            api.post('/api/shopping-list', {
+              name: ing.name,
+              quantity: 1,
+              unit: 'count',
+              priority: 'normal'
+            })
+          )
+        );
+        alert(`Recipe saved! ${missing.length} missing ingredient${missing.length > 1 ? 's' : ''} added to shopping list.`);
+      } else {
+        alert('Recipe saved!');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to save recipe');
+    } finally {
+      setSaving(null);
+    }
+  };
 
   const fetchHistory = async () => {
     try {
@@ -687,6 +767,16 @@ export default function Recipes() {
                         >
                           {saving === r.id ? 'Saving...' : 'Save'}
                         </button>
+                        {getMissingIngredients(r.ingredients).length > 0 && (
+                          <button
+                            className='btn-outline btn-sm'
+                            onClick={() => handleSaveAndAddMissing(r)}
+                            disabled={saving === r.id}
+                            title='Save recipe and add missing ingredients to shopping list'
+                          >
+                            Save & Add Missing
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -859,6 +949,16 @@ export default function Recipes() {
                               >
                                 {saving === recipe.id ? 'Saving...' : 'Save'}
                               </button>
+                              {getMissingIngredients(recipe.ingredients).length > 0 && (
+                                <button
+                                  className='btn-outline btn-sm'
+                                  onClick={() => handleSaveAndAddMissing(recipe)}
+                                  disabled={saving === recipe.id}
+                                  title='Save recipe and add missing ingredients to shopping list'
+                                >
+                                  Save & Add Missing
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -906,9 +1006,15 @@ export default function Recipes() {
                 <div className='detail-col'>
                   <div className='detail-title'>Ingredients</div>
                   <ul>
-                    {active.ingredients.map((i, idx) => (
-                      <li key={idx}>{i.name} {i.amount && `— ${i.amount}`}</li>
-                    ))}
+                    {active.ingredients.map((i, idx) => {
+                      const isMissing = getMissingIngredients([i]).length > 0;
+                      return (
+                        <li key={idx} style={isMissing ? { color: '#dc2626' } : undefined}>
+                          {i.name} {i.amount && `— ${i.amount}`}
+                          {isMissing && <span style={{ fontSize: '0.75rem', marginLeft: '0.5rem', opacity: 0.7 }}>(missing)</span>}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
                 <div className='detail-col'>
@@ -936,13 +1042,25 @@ export default function Recipes() {
                   </button>
                 </>
               ) : (
-                <button
-                  className='btn-soft'
-                  onClick={() => handleSaveRecipe(active as GeneratedRecipe)}
-                  disabled={saving === active.id}
-                >
-                  {saving === active.id ? 'Saving...' : 'Save Recipe'}
-                </button>
+                <>
+                  <button
+                    className='btn-soft'
+                    onClick={() => handleSaveRecipe(active as GeneratedRecipe)}
+                    disabled={saving === active.id}
+                  >
+                    {saving === active.id ? 'Saving...' : 'Save Recipe'}
+                  </button>
+                  {getMissingIngredients(active.ingredients).length > 0 && (
+                    <button
+                      className='btn-outline'
+                      onClick={() => handleSaveAndAddMissing(active as GeneratedRecipe)}
+                      disabled={saving === active.id}
+                      title='Save recipe and add missing ingredients to shopping list'
+                    >
+                      {saving === active.id ? 'Saving...' : 'Save & Add Missing'}
+                    </button>
+                  )}
+                </>
               )}
               <button className='btn-primary' onClick={() => setActive(null)}>Done</button>
             </div>
