@@ -4,7 +4,7 @@ import { getHouseholdContext, buildHouseholdQuery } from '../utils/household.uti
 
 export const getHistory = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -38,7 +38,7 @@ export const getHistory = async (req: Request, res: Response) => {
 
 export const deleteHistoryItem = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -79,7 +79,7 @@ export const deleteHistoryItem = async (req: Request, res: Response) => {
 
 export const clearHistory = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({

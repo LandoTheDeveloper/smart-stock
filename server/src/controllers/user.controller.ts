@@ -13,7 +13,7 @@ const LIQUID_FACTORS: Record<string, number> = {
 
 export const getPreferences = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -56,7 +56,7 @@ export const getPreferences = async (req: Request, res: Response) => {
 
 export const updatePreferences = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({

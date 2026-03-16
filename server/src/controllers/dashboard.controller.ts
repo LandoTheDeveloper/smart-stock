@@ -4,7 +4,7 @@ import { getHouseholdContext, buildHouseholdQuery } from '../utils/household.uti
 
 export const getOverview = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({

@@ -6,7 +6,7 @@ import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '
 
 export const getMealPlans = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId || req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -50,7 +50,7 @@ export const getMealPlans = async (req: Request, res: Response) => {
 
 export const addMealPlan = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId || req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -100,7 +100,7 @@ export const addMealPlan = async (req: Request, res: Response) => {
 
 export const updateMealPlan = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId || req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -152,7 +152,7 @@ export const updateMealPlan = async (req: Request, res: Response) => {
 
 export const toggleMealCompleted = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId || req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -197,7 +197,7 @@ export const toggleMealCompleted = async (req: Request, res: Response) => {
 
 export const deleteMealPlan = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId || req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -238,7 +238,7 @@ export const deleteMealPlan = async (req: Request, res: Response) => {
 
 export const getIngredientComparison = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId || req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -320,7 +320,7 @@ export const getIngredientComparison = async (req: Request, res: Response) => {
 
 export const generateShoppingList = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId || req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({

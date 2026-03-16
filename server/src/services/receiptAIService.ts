@@ -9,6 +9,7 @@ const model = genAI.getGenerativeModel({
 export interface ParsedGrocery {
   name: string;
   quantity: number;
+  unit: "lbs" | "oz" | "count" | "gallon" | "package";
   expected_expiration: string;
 }
 
