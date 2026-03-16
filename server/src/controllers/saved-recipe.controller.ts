@@ -4,7 +4,7 @@ import { getHouseholdContext, buildHouseholdQuery, buildItemAttribution } from '
 
 export const getAllRecipes = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -42,7 +42,7 @@ export const getAllRecipes = async (req: Request, res: Response) => {
 
 export const getRecipeById = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -83,7 +83,7 @@ export const getRecipeById = async (req: Request, res: Response) => {
 
 export const saveRecipe = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -154,7 +154,7 @@ export const saveRecipe = async (req: Request, res: Response) => {
 
 export const updateRecipe = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -212,7 +212,7 @@ export const updateRecipe = async (req: Request, res: Response) => {
 
 export const toggleFavorite = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -257,7 +257,7 @@ export const toggleFavorite = async (req: Request, res: Response) => {
 
 export const deleteRecipe = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {

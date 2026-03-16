@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import session from 'express-session';
 import { connectDatabase } from './config/database';
 import passport from './config/passport';
+import receiptRoutes from "./routes/receipt.routes";
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
@@ -77,6 +78,8 @@ app.use(
     });
   }
 );
+
+app.use("/api/receipt", receiptRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;

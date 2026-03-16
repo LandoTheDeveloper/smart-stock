@@ -5,7 +5,7 @@ import User from '../models/User';
 // Create a new household
 export const createHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { name } = req.body;
 
     if (!userId) {
@@ -64,7 +64,7 @@ export const createHousehold = async (req: Request, res: Response) => {
 // Get active household
 export const getActiveHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -99,7 +99,7 @@ export const getActiveHousehold = async (req: Request, res: Response) => {
 // Get all households user belongs to
 export const getAllHouseholds = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -129,7 +129,7 @@ export const getAllHouseholds = async (req: Request, res: Response) => {
 // Update household
 export const updateHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
     const { name } = req.body;
 
@@ -164,7 +164,7 @@ export const updateHousehold = async (req: Request, res: Response) => {
 // Join household via invite code
 export const joinHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { inviteCode } = req.body;
 
     if (!userId) {
@@ -225,7 +225,7 @@ export const joinHousehold = async (req: Request, res: Response) => {
 // Leave household
 export const leaveHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -282,7 +282,7 @@ export const leaveHousehold = async (req: Request, res: Response) => {
 // Remove member from household (owner only)
 export const removeMember = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id, memberId } = req.params;
 
     if (!userId) {
@@ -334,7 +334,7 @@ export const removeMember = async (req: Request, res: Response) => {
 // Regenerate invite code
 export const regenerateInviteCode = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -381,7 +381,7 @@ export const regenerateInviteCode = async (req: Request, res: Response) => {
 // Switch active household
 export const switchHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -422,7 +422,7 @@ export const switchHousehold = async (req: Request, res: Response) => {
 // Clear active household (go personal)
 export const clearActiveHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -446,7 +446,7 @@ export const clearActiveHousehold = async (req: Request, res: Response) => {
 // Delete household (owner only)
 export const deleteHousehold = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {

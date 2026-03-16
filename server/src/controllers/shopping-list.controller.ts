@@ -23,7 +23,7 @@ function isLowStock(quantity: number, unit: string, thresholds: { solid: number;
 
 export const getAllItems = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -56,7 +56,7 @@ export const getAllItems = async (req: Request, res: Response) => {
 
 export const createItem = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -108,7 +108,7 @@ export const createItem = async (req: Request, res: Response) => {
 
 export const updateItem = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -161,7 +161,7 @@ export const updateItem = async (req: Request, res: Response) => {
 
 export const toggleItem = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -206,7 +206,7 @@ export const toggleItem = async (req: Request, res: Response) => {
 
 export const deleteItem = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
@@ -247,7 +247,7 @@ export const deleteItem = async (req: Request, res: Response) => {
 
 export const clearChecked = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -280,7 +280,7 @@ export const clearChecked = async (req: Request, res: Response) => {
 
 export const generateFromLowStock = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -350,7 +350,7 @@ export const generateFromLowStock = async (req: Request, res: Response) => {
 
 export const addToPantry = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).userId || (req.user as any)?._id || (req.user as any)?.id;
     const { id } = req.params;
 
     if (!userId) {
