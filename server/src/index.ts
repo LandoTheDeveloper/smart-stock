@@ -78,7 +78,7 @@ app.use(
   }
 );
 
-app.use("/api/receipts", receiptRoutes);
+app.use("/api/receipt", receiptRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;

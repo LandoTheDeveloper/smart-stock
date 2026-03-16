@@ -135,12 +135,14 @@ function guessCategory(product: ProductData): Category {
 export default function Scan() {
   const nav = useNavigate();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<BarcodeDetector | null>(null);
   const rafRef = useRef<number>(0);
   const scanningRef = useRef(false);
 
-  const [mode, setMode] = useState<'camera' | 'manual'>('camera');
+  const [mode, setMode] = useState<'camera' | 'manual' | 'receipt'>('camera');
   const [cameraError, setCameraError] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -151,6 +153,7 @@ export default function Scan() {
   const [lookupError, setLookupError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [saving, setSaving] = useState(false);
+  const [receiptUploading, setReceiptUploading] = useState(false);
 
   const [defaultUnits, setDefaultUnits] = useState<DefaultUnits | undefined>();
 
@@ -220,6 +223,7 @@ export default function Scan() {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
+    detectorRef.current = null;
     setScanning(false);
   }, []);
 
@@ -233,7 +237,6 @@ export default function Scan() {
       });
       streamRef.current = stream;
 
-      // Wait for video element to be available
       await new Promise(r => setTimeout(r, 100));
       const video = videoRef.current;
       if (!video) { stopScanner(); return; }
@@ -266,14 +269,17 @@ export default function Scan() {
             fetchProduct(barcodes[0].rawValue);
             return;
           }
-        } catch { /* detection miss */ }
+        } catch {
+          // detection miss
+        }
         rafRef.current = requestAnimationFrame(detect);
       };
+
       rafRef.current = requestAnimationFrame(detect);
     } catch (err: any) {
       const msg = err?.message || String(err);
       if (msg.includes('Permission') || msg.includes('NotAllowed')) {
-        setCameraError('Camera permission denied. Please allow camera access in your browser settings, or use manual entry.');
+        setCameraError('Camera permission denied. Please allow camera access in your browser settings, or use manual entry instead.');
       } else if (msg.includes('NotFound') || msg.includes('device')) {
         setCameraError('No camera found on this device. Use manual entry instead.');
       } else {
@@ -282,12 +288,52 @@ export default function Scan() {
     }
   }, [stopScanner, fetchProduct]);
 
+  const startReceiptCamera = useCallback(async () => {
+    setCameraError('');
+    setScanning(false);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      });
+      streamRef.current = stream;
+
+      await new Promise(r => setTimeout(r, 100));
+      const video = videoRef.current;
+      if (!video) { stopScanner(); return; }
+
+      video.srcObject = stream;
+      try {
+        await video.play();
+      } catch {
+        stopScanner();
+        setCameraError('No camera found on this device. Use file upload instead.');
+        return;
+      }
+
+      scanningRef.current = true;
+      setScanning(true);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      if (msg.includes('Permission') || msg.includes('NotAllowed')) {
+        setCameraError('Camera permission denied. Please allow camera access in your browser settings, or use file upload instead.');
+      } else if (msg.includes('NotFound') || msg.includes('device')) {
+        setCameraError('No camera found on this device. Use file upload instead.');
+      } else {
+        setCameraError(`Could not start camera: ${msg}`);
+      }
+    }
+  }, [stopScanner]);
+
   useEffect(() => {
     if (mode === 'camera' && !scannedBarcode && !successMsg) {
       startScanner();
+    } else if (mode === 'receipt' && !successMsg) {
+      startReceiptCamera();
     }
+
     return () => { stopScanner(); };
-  }, [mode, scannedBarcode, successMsg, startScanner, stopScanner]);
+  }, [mode, scannedBarcode, successMsg, startScanner, startReceiptCamera, stopScanner]);
 
   const handleManualLookup = () => {
     const barcode = manualBarcode.trim();
@@ -295,13 +341,27 @@ export default function Scan() {
     fetchProduct(barcode);
   };
 
-  const handleScanAgain = async () => {
+  const resetState = () => {
     setScannedBarcode(null);
     setProductData(null);
     setLookupError('');
     setSuccessMsg('');
-    setFormData({ name: '', quantity: '1', unit: 'count', expirationDate: '', category: '', storageLocation: 'Pantry' });
+    setCameraError('');
+    setReceiptUploading(false);
+    setFormData({
+      name: '',
+      quantity: '1',
+      unit: 'count',
+      expirationDate: '',
+      category: '',
+      storageLocation: 'Pantry',
+    });
     setManualBarcode('');
+  };
+
+  const handleScanAgain = async () => {
+    stopScanner();
+    resetState();
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -346,6 +406,82 @@ export default function Scan() {
     }
   };
 
+  const uploadReceiptFile = useCallback(async (file: File) => {
+    setReceiptUploading(true);
+    setLookupError('');
+    setCameraError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('receipt', file);
+
+      const res = await api.post('/api/receipt/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const importedCount =
+        res.data?.importedCount ??
+        res.data?.data?.length ??
+        res.data?.groceries?.length ??
+        0;
+
+      setSuccessMsg(
+        importedCount > 0
+          ? `Receipt processed! ${importedCount} item${importedCount === 1 ? '' : 's'} added to pantry.`
+          : 'Receipt processed and pantry updated.'
+      );
+
+      stopScanner();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to upload receipt');
+    } finally {
+      setReceiptUploading(false);
+    }
+  }, [stopScanner]);
+
+  const handleCaptureReceipt = useCallback(async () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || receiptUploading) return;
+    if (video.readyState < 2) {
+      alert('Camera is not ready yet. Please try again in a moment.');
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      alert('Could not access image capture.');
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.92);
+    });
+
+    if (!blob) {
+      alert('Failed to capture receipt image');
+      return;
+    }
+
+    const file = new File([blob], 'receipt.jpg', { type: 'image/jpeg' });
+    await uploadReceiptFile(file);
+  }, [receiptUploading, uploadReceiptFile]);
+
+  const handleReceiptFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadReceiptFile(file);
+    e.target.value = '';
+  };
+
   const nutriScoreColor = (grade?: string) => {
     switch (grade?.toLowerCase()) {
       case 'a': return '#1b8a2d';
@@ -361,7 +497,7 @@ export default function Scan() {
     <>
       <style>{`
         .scan-page { max-width: 800px; margin: 0 auto; }
-        .scan-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        .scan-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
         .scan-tab { padding: 0.5rem 1.25rem; border-radius: 8px; border: 1px solid var(--border);
           background: var(--bg-elev); cursor: pointer; font-weight: 500; transition: all 0.2s; }
         .scan-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
@@ -371,6 +507,9 @@ export default function Scan() {
         .scan-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
         .scan-box { width: 280px; height: 180px; border: 2px solid rgba(76,175,80,0.8); border-radius: 12px;
           box-shadow: 0 0 0 9999px rgba(0,0,0,0.4); }
+        .receipt-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        .receipt-frame { width: min(88%, 420px); height: min(72%, 560px); border: 3px solid rgba(255,255,255,0.9);
+          border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); }
         .product-card { display: flex; gap: 1rem; align-items: flex-start; }
         .product-img { width: 100px; height: 100px; object-fit: contain; border-radius: 8px;
           background: #f5f5f5; flex-shrink: 0; }
@@ -386,9 +525,13 @@ export default function Scan() {
         .nutrition-value { font-weight: 700; font-size: 1rem; }
         .nutrition-label { font-size: 0.75rem; color: var(--muted); }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; }
+        .receipt-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin-top: 1rem; }
+        .receipt-help { color: var(--muted); font-size: 0.9rem; text-align: center; margin-top: 0.75rem; }
+        @media (max-width: 600px) {
+          .form-grid { grid-template-columns: 1fr; }
           .product-card { flex-direction: column; align-items: center; text-align: center; }
-          .nutri-badges { justify-content: center; } }
+          .nutri-badges { justify-content: center; }
+        }
         .success-card { text-align: center; padding: 2rem; }
         .success-icon { font-size: 3rem; margin-bottom: 0.5rem; color: var(--primary); }
         .allergen-list { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.5rem; }
@@ -397,29 +540,55 @@ export default function Scan() {
 
       <div className="scan-page">
         <div className="scan-tabs">
-          <button className={`scan-tab ${mode === 'camera' ? 'active' : ''}`}
-            onClick={() => { stopScanner(); setMode('camera'); setScannedBarcode(null); setProductData(null); setLookupError(''); setSuccessMsg(''); }}>
+          <button
+            className={`scan-tab ${mode === 'camera' ? 'active' : ''}`}
+            onClick={() => {
+              stopScanner();
+              resetState();
+              setMode('camera');
+            }}
+          >
             Camera Scan
           </button>
-          <button className={`scan-tab ${mode === 'manual' ? 'active' : ''}`}
-            onClick={() => { stopScanner(); setMode('manual'); setScannedBarcode(null); setProductData(null); setLookupError(''); setSuccessMsg(''); }}>
+
+          <button
+            className={`scan-tab ${mode === 'manual' ? 'active' : ''}`}
+            onClick={() => {
+              stopScanner();
+              resetState();
+              setMode('manual');
+            }}
+          >
             Manual Entry
+          </button>
+
+          <button
+            className={`scan-tab ${mode === 'receipt' ? 'active' : ''}`}
+            onClick={() => {
+              stopScanner();
+              resetState();
+              setMode('receipt');
+            }}
+          >
+            Receipt Scan
           </button>
         </div>
 
-        {/* Success message */}
         {successMsg && (
           <div className="card success-card">
             <div className="success-icon">&#10003;</div>
             <div style={{ fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem' }}>{successMsg}</div>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
-              <button className="btn-primary" onClick={handleScanAgain}>Scan Another</button>
-              <button className="btn-outline" onClick={() => nav('/pantry')}>Go to Pantry</button>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem', flexWrap: 'wrap' }}>
+              <button className="btn-primary" onClick={handleScanAgain}>
+                {mode === 'receipt' ? 'Scan Another Receipt' : 'Scan Another'}
+              </button>
+              <button className="btn-outline" onClick={() => nav('/pantry')}>
+                Go to Pantry
+              </button>
             </div>
           </div>
         )}
 
-        {/* Camera mode */}
         {!successMsg && mode === 'camera' && !scannedBarcode && (
           <>
             <div className="camera-wrapper">
@@ -443,17 +612,23 @@ export default function Scan() {
           </>
         )}
 
-        {/* Manual mode */}
         {!successMsg && mode === 'manual' && !scannedBarcode && (
           <div className="card">
             <div style={{ fontWeight: 600, marginBottom: '1rem' }}>Enter Barcode Number</div>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-              <input className="input" placeholder="e.g. 5000112637922"
-                value={manualBarcode} onChange={e => setManualBarcode(e.target.value)}
+              <input
+                className="input"
+                placeholder="e.g. 5000112637922"
+                value={manualBarcode}
+                onChange={e => setManualBarcode(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleManualLookup()}
-                style={{ flex: 1 }} />
-              <button className="btn-primary" onClick={handleManualLookup}
-                disabled={!manualBarcode.trim() || loading}>
+                style={{ flex: 1 }}
+              />
+              <button
+                className="btn-primary"
+                onClick={handleManualLookup}
+                disabled={!manualBarcode.trim() || loading}
+              >
                 {loading ? 'Looking up...' : 'Look Up'}
               </button>
             </div>
@@ -463,26 +638,98 @@ export default function Scan() {
           </div>
         )}
 
-        {/* Loading */}
+        {!successMsg && mode === 'receipt' && (
+          <div className="card">
+            <div style={{ fontWeight: 600, marginBottom: '1rem', textAlign: 'center' }}>
+              Scan Receipt
+            </div>
+
+            <div className="camera-wrapper">
+              <video ref={videoRef} playsInline muted />
+              {scanning && (
+                <div className="receipt-overlay">
+                  <div className="receipt-frame" />
+                </div>
+              )}
+              {!scanning && !cameraError && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  Starting camera...
+                </div>
+              )}
+            </div>
+
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+            {cameraError && (
+              <div className="card" style={{ textAlign: 'center', color: '#dc2626', marginBottom: '1rem' }}>
+                {cameraError}
+              </div>
+            )}
+
+            <div className="receipt-actions">
+              <button
+                className="btn-primary"
+                onClick={handleCaptureReceipt}
+                disabled={!scanning || receiptUploading}
+              >
+                {receiptUploading ? 'Uploading...' : 'Take Picture'}
+              </button>
+
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={receiptUploading}
+              >
+                Upload From Device
+              </button>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleReceiptFileUpload}
+              style={{ display: 'none' }}
+            />
+
+            <div className="receipt-help">
+              Line up the receipt inside the frame, make sure the text is clear, then take the picture.
+            </div>
+          </div>
+        )}
+
         {loading && (
           <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
-            <div style={{ width: 40, height: 40, border: '3px solid var(--border)', borderTopColor: 'var(--primary)',
-              borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                border: '3px solid var(--border)',
+                borderTopColor: 'var(--primary)',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 1rem'
+              }}
+            />
             Fetching product information...
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
 
-        {/* Lookup error */}
         {!loading && lookupError && (
           <div className="card" style={{ borderLeft: '4px solid #ef8200' }}>
             <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{lookupError}</div>
-            {scannedBarcode && <div style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>Barcode: {scannedBarcode}</div>}
+            {scannedBarcode && (
+              <div style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+                Barcode: {scannedBarcode}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Product info + form */}
-        {!loading && !successMsg && (scannedBarcode || lookupError) && (
+        {!loading && !successMsg && (scannedBarcode || lookupError) && mode !== 'receipt' && (
           <div className="card" style={{ marginTop: '1rem' }}>
             {productData && (
               <>
@@ -578,20 +825,32 @@ export default function Scan() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Item Name *</label>
-                  <input className="input" required value={formData.name}
-                    onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} />
+                  <input
+                    className="input"
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                  />
                 </div>
 
                 <div className="form-grid">
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Quantity</label>
-                    <input className="input" type="number" min="1" value={formData.quantity}
-                      onChange={e => setFormData(p => ({ ...p, quantity: e.target.value }))} />
+                    <input
+                      className="input"
+                      type="number"
+                      min="1"
+                      value={formData.quantity}
+                      onChange={e => setFormData(p => ({ ...p, quantity: e.target.value }))}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Unit</label>
-                    <select className="input" value={formData.unit}
-                      onChange={e => setFormData(p => ({ ...p, unit: e.target.value }))}>
+                    <select
+                      className="input"
+                      value={formData.unit}
+                      onChange={e => setFormData(p => ({ ...p, unit: e.target.value }))}
+                    >
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
@@ -600,19 +859,25 @@ export default function Scan() {
                 <div className="form-grid">
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Category</label>
-                    <select className="input" value={formData.category}
+                    <select
+                      className="input"
+                      value={formData.category}
                       onChange={e => {
                         const cat = e.target.value as Category;
                         setFormData(p => ({ ...p, category: cat, unit: getDefaultUnit(cat, defaultUnits) }));
-                      }}>
+                      }}
+                    >
                       <option value="">Select...</option>
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
                     <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Storage Location</label>
-                    <select className="input" value={formData.storageLocation}
-                      onChange={e => setFormData(p => ({ ...p, storageLocation: e.target.value as StorageLocation }))}>
+                    <select
+                      className="input"
+                      value={formData.storageLocation}
+                      onChange={e => setFormData(p => ({ ...p, storageLocation: e.target.value as StorageLocation }))}
+                    >
                       {STORAGE_LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
@@ -620,8 +885,12 @@ export default function Scan() {
 
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Expiration Date</label>
-                  <input className="input" type="date" value={formData.expirationDate}
-                    onChange={e => setFormData(p => ({ ...p, expirationDate: e.target.value }))} />
+                  <input
+                    className="input"
+                    type="date"
+                    value={formData.expirationDate}
+                    onChange={e => setFormData(p => ({ ...p, expirationDate: e.target.value }))}
+                  />
                 </div>
               </div>
 
