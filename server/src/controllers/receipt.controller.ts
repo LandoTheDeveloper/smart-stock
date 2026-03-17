@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import fs from "fs/promises";
-
 import { extractText } from "../services/ocrService";
 import { parseReceipt } from "../services/receiptAIService";
 
@@ -8,6 +7,8 @@ export async function uploadReceiptController(req: Request, res: Response) {
   let filePath: string | undefined;
 
   try {
+    console.log("Receipt upload controller hit");
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -17,34 +18,49 @@ export async function uploadReceiptController(req: Request, res: Response) {
 
     filePath = req.file.path;
 
-    const text = await extractText(filePath);
-    const groceries = await parseReceipt(text);
+    console.log("Uploaded receipt info:", {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path,
+    });
 
-    if (!Array.isArray(groceries) || groceries.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No groceries were parsed from the receipt",
-      });
-    }
+    console.log("Starting OCR...");
+    const text = await extractText(filePath);
+    console.log("OCR complete");
+
+    console.log("OCR preview:", text.slice(0, 1000));
+
+    console.log("Starting receipt parse...");
+    const groceries = await parseReceipt(text);
+    console.log("Receipt parse complete:", groceries);
 
     return res.status(200).json({
       success: true,
       message: "Receipt parsed successfully",
       groceries,
+      debug: {
+        textPreview: text.slice(0, 500),
+      },
     });
-  } catch (err: any) {
-    console.error("Receipt upload failed:", err);
+  } catch (err: unknown) {
+    console.error("Receipt processing failed:", err);
+
+    const message =
+      err instanceof Error ? err.message : "Receipt processing failed";
 
     return res.status(500).json({
       success: false,
       message: "Receipt processing failed",
-      error: err.message,
+      error: message,
     });
   } finally {
     if (filePath) {
       try {
         await fs.unlink(filePath);
-      } catch {}
+      } catch (unlinkErr) {
+        console.error("Failed to delete uploaded receipt file:", unlinkErr);
+      }
     }
   }
 }
