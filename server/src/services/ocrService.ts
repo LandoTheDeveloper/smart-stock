@@ -1,6 +1,18 @@
 import vision from "@google-cloud/vision";
 
-const client = new vision.ImageAnnotatorClient();
+function createVisionClient() {
+  const rawJson = process.env.GOOGLE_CREDENTIALS_JSON?.trim();
+
+  if (rawJson) {
+    return new vision.ImageAnnotatorClient({
+      credentials: JSON.parse(rawJson),
+    });
+  }
+
+  return new vision.ImageAnnotatorClient();
+}
+
+const client = createVisionClient();
 
 export async function extractText(filePath: string): Promise<string> {
   try {
@@ -14,6 +26,7 @@ export async function extractText(filePath: string): Promise<string> {
     return text;
   } catch (err) {
     console.error("Google Vision OCR failed:", err);
+
     throw new Error(
       err instanceof Error ? err.message : "Failed to extract text from receipt"
     );

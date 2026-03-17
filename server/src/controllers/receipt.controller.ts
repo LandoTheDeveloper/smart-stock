@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import fs from "fs/promises";
+
 import { extractText } from "../services/ocrService";
 import { parseReceipt } from "../services/receiptAIService";
 
@@ -28,20 +29,23 @@ export async function uploadReceiptController(req: Request, res: Response) {
     console.log("Starting OCR...");
     const text = await extractText(filePath);
     console.log("OCR complete");
-
     console.log("OCR preview:", text.slice(0, 1000));
 
     console.log("Starting receipt parse...");
     const groceries = await parseReceipt(text);
     console.log("Receipt parse complete:", groceries);
 
+    if (!Array.isArray(groceries) || groceries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No groceries were parsed from the receipt",
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Receipt parsed successfully",
       groceries,
-      debug: {
-        textPreview: text.slice(0, 500),
-      },
     });
   } catch (err: unknown) {
     console.error("Receipt processing failed:", err);
@@ -51,7 +55,7 @@ export async function uploadReceiptController(req: Request, res: Response) {
 
     return res.status(500).json({
       success: false,
-      message: "Receipt processing failed",
+      message,
       error: message,
     });
   } finally {
