@@ -279,8 +279,7 @@ export default function Scan() {
       streamRef.current = stream;
 
       await new Promise(r => setTimeout(r, 100));
-      const video = videoRef.current;
-      // Wait for video element to be available (poll instead of fixed timeout)
+
       let video: HTMLVideoElement | null = null;
       for (let i = 0; i < 20; i++) {
         video = videoRef.current;
@@ -394,9 +393,10 @@ export default function Scan() {
       startScannerRef.current();
     }
 
-    return () => { stopScanner(); };
+    return () => {
+      stopScanner();
+    };
   }, [mode, scannedBarcode, successMsg, receiptItems.length, startScanner, startReceiptCamera, stopScanner]);
-  }, [mode, scannedBarcode, successMsg, stopScanner]);
 
   const handleManualLookup = () => {
     const barcode = manualBarcode.trim();
