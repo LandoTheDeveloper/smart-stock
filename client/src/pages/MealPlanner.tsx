@@ -74,6 +74,12 @@ export default function MealPlanner() {
   const [generatingRecipes, setGeneratingRecipes] = useState(false);
   const [recipePrompt, setRecipePrompt] = useState('');
 
+  // Recipe filter selections
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+
   // Abort controller for cancelling recipe generation
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -180,8 +186,16 @@ export default function MealPlanner() {
 
     setGeneratingRecipes(true);
     try {
+      const parts: string[] = [];
+      if (selectedCuisine) parts.push(selectedCuisine + ' cuisine');
+      if (selectedTime) parts.push(selectedTime);
+      if (selectedDietary.length > 0) parts.push(selectedDietary.join(', '));
+      if (selectedStyle) parts.push(selectedStyle);
+      if (recipePrompt.trim()) parts.push(recipePrompt.trim());
+      const combinedPrompt = parts.join(', ') || undefined;
+
       const response = await api.post('/api/generate/recipes', {
-        userPrompt: recipePrompt.trim() || undefined
+        userPrompt: combinedPrompt
       }, {
         signal: abortControllerRef.current.signal
       });
@@ -333,6 +347,10 @@ export default function MealPlanner() {
     setShowAddModal(true);
     setGeneratedRecipes([]);
     setRecipePrompt('');
+    setSelectedCuisine(null);
+    setSelectedTime(null);
+    setSelectedDietary([]);
+    setSelectedStyle(null);
   };
 
   if (loading) {
@@ -445,6 +463,43 @@ export default function MealPlanner() {
           font-weight: 600;
           min-width: 200px;
           text-align: center;
+        }
+        .recipe-filters {
+          margin-bottom: 1rem;
+        }
+        .filter-section {
+          margin-bottom: 0.75rem;
+        }
+        .filter-label {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: var(--muted);
+          margin-bottom: 0.4rem;
+        }
+        .filter-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.4rem;
+        }
+        .chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.35rem 0.75rem;
+          border-radius: 100px;
+          border: 1px solid var(--border);
+          background: var(--bg-secondary);
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all 0.15s;
+          color: var(--text);
+        }
+        .chip:hover {
+          border-color: var(--primary);
+        }
+        .chip.selected {
+          background: var(--primary);
+          color: #fff;
+          border-color: var(--primary);
         }
         .recipe-card-small {
           background: var(--bg-secondary);
@@ -858,14 +913,63 @@ export default function MealPlanner() {
 
                 {addMealTab === 'generate' && (
                   <>
+                    <div className="recipe-filters">
+                      <div className="filter-section">
+                        <div className="filter-label">Cuisine</div>
+                        <div className="filter-chips">
+                          {['Italian', 'Mexican', 'Asian', 'Indian', 'Mediterranean', 'American'].map(c => (
+                            <button
+                              key={c}
+                              className={`chip${selectedCuisine === c ? ' selected' : ''}`}
+                              onClick={() => setSelectedCuisine(selectedCuisine === c ? null : c)}
+                            >{c}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="filter-section">
+                        <div className="filter-label">Prep Time</div>
+                        <div className="filter-chips">
+                          {['Under 15 min', 'Under 30 min', 'Under 1 hr'].map(t => (
+                            <button
+                              key={t}
+                              className={`chip${selectedTime === t ? ' selected' : ''}`}
+                              onClick={() => setSelectedTime(selectedTime === t ? null : t)}
+                            >{t}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="filter-section">
+                        <div className="filter-label">Dietary</div>
+                        <div className="filter-chips">
+                          {['Vegetarian', 'High Protein', 'Low Carb', 'Gluten Free'].map(d => (
+                            <button
+                              key={d}
+                              className={`chip${selectedDietary.includes(d) ? ' selected' : ''}`}
+                              onClick={() => setSelectedDietary(prev =>
+                                prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+                              )}
+                            >{d}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="filter-section">
+                        <div className="filter-label">Cooking Style</div>
+                        <div className="filter-chips">
+                          {['One Pot', 'Sheet Pan', 'Slow Cooker', 'Air Fryer', 'No Cook'].map(s => (
+                            <button
+                              key={s}
+                              className={`chip${selectedStyle === s ? ' selected' : ''}`}
+                              onClick={() => setSelectedStyle(selectedStyle === s ? null : s)}
+                            >{s}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                     <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                        Generate recipes from your pantry
-                      </label>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <input
                           className="input"
-                          placeholder="Optional: dietary preferences, cuisine type..."
+                          placeholder="Anything else? (optional)"
                           value={recipePrompt}
                           onChange={(e) => setRecipePrompt(e.target.value)}
                           style={{ flex: 1 }}

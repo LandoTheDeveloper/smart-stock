@@ -62,6 +62,10 @@ export default function RecipesScreen() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [userPrompt, setUserPrompt] = useState("");
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [savingRecipe, setSavingRecipe] = useState<string | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -169,8 +173,16 @@ export default function RecipesScreen() {
     setGenerating(true);
     setGeneratedRecipes([]);
     try {
+      const parts: string[] = [];
+      if (selectedCuisine) parts.push(selectedCuisine + " cuisine");
+      if (selectedTime) parts.push(selectedTime);
+      if (selectedDietary.length > 0) parts.push(selectedDietary.join(", "));
+      if (selectedStyle) parts.push(selectedStyle);
+      if (userPrompt.trim()) parts.push(userPrompt.trim());
+      const combinedPrompt = parts.join(", ") || undefined;
+
       const response = await api.post("/api/ai/generate-recipes", {
-        userPrompt: userPrompt.trim() || undefined,
+        userPrompt: combinedPrompt,
       }, {
         signal: abortControllerRef.current.signal
       });
@@ -478,14 +490,69 @@ export default function RecipesScreen() {
         ) : tab === "generate" ? (
           <View>
             <View style={styles.promptSection}>
-              <Text style={styles.promptLabel}>
-                Optional: Add specific requirements
-              </Text>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Cuisine</Text>
+                <View style={styles.filterChipsRow}>
+                  {["Italian", "Mexican", "Asian", "Indian", "Mediterranean", "American"].map(c => (
+                    <TouchableOpacity
+                      key={c}
+                      style={[styles.genChip, selectedCuisine === c && styles.genChipSelected]}
+                      onPress={() => setSelectedCuisine(selectedCuisine === c ? null : c)}
+                    >
+                      <Text style={[styles.genChipText, selectedCuisine === c && styles.genChipTextSelected]}>{c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Prep Time</Text>
+                <View style={styles.filterChipsRow}>
+                  {["Under 15 min", "Under 30 min", "Under 1 hr"].map(t => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.genChip, selectedTime === t && styles.genChipSelected]}
+                      onPress={() => setSelectedTime(selectedTime === t ? null : t)}
+                    >
+                      <Text style={[styles.genChipText, selectedTime === t && styles.genChipTextSelected]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Dietary</Text>
+                <View style={styles.filterChipsRow}>
+                  {["Vegetarian", "High Protein", "Low Carb", "Gluten Free"].map(d => (
+                    <TouchableOpacity
+                      key={d}
+                      style={[styles.genChip, selectedDietary.includes(d) && styles.genChipSelected]}
+                      onPress={() => setSelectedDietary(prev =>
+                        prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+                      )}
+                    >
+                      <Text style={[styles.genChipText, selectedDietary.includes(d) && styles.genChipTextSelected]}>{d}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Cooking Style</Text>
+                <View style={styles.filterChipsRow}>
+                  {["One Pot", "Sheet Pan", "Slow Cooker", "Air Fryer", "No Cook"].map(s => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.genChip, selectedStyle === s && styles.genChipSelected]}
+                      onPress={() => setSelectedStyle(selectedStyle === s ? null : s)}
+                    >
+                      <Text style={[styles.genChipText, selectedStyle === s && styles.genChipTextSelected]}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
               <TextInput
                 style={styles.promptInput}
                 value={userPrompt}
                 onChangeText={setUserPrompt}
-                placeholder="e.g., high protein, quick meals, Italian cuisine..."
+                placeholder="Anything else? (optional)"
                 multiline
                 numberOfLines={2}
               />
@@ -714,6 +781,40 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
 
+  filterSection: {
+    marginBottom: 14,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#888",
+    marginBottom: 6,
+  },
+  filterChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  genChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: "#e3ece5",
+    backgroundColor: "#f8faf8",
+  },
+  genChipSelected: {
+    backgroundColor: "#2e7d32",
+    borderColor: "#2e7d32",
+  },
+  genChipText: {
+    fontSize: 13,
+    color: "#333",
+  },
+  genChipTextSelected: {
+    color: "#fff",
+    fontWeight: "600",
+  },
   promptSection: {
     backgroundColor: "#fff",
     padding: 16,

@@ -105,6 +105,12 @@ export default function MealPlannerScreen() {
   const [recipePrompt, setRecipePrompt] = useState("");
   const [addMealTab, setAddMealTab] = useState<"favorites" | "generate">("favorites");
 
+  // Recipe filter selections
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+
   // Abort controller for cancelling recipe generation
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -243,8 +249,16 @@ export default function MealPlannerScreen() {
 
     setGeneratingRecipes(true);
     try {
+      const parts: string[] = [];
+      if (selectedCuisine) parts.push(selectedCuisine + " cuisine");
+      if (selectedTime) parts.push(selectedTime);
+      if (selectedDietary.length > 0) parts.push(selectedDietary.join(", "));
+      if (selectedStyle) parts.push(selectedStyle);
+      if (recipePrompt.trim()) parts.push(recipePrompt.trim());
+      const combinedPrompt = parts.join(", ") || undefined;
+
       const response = await api.post("/api/ai/generate-recipes", {
-        userPrompt: recipePrompt.trim() || undefined,
+        userPrompt: combinedPrompt,
       }, {
         signal: abortControllerRef.current.signal
       });
@@ -433,6 +447,10 @@ export default function MealPlannerScreen() {
     setGeneratedRecipes([]);
     setRecipePrompt("");
     setAddMealTab("favorites");
+    setSelectedCuisine(null);
+    setSelectedTime(null);
+    setSelectedDietary([]);
+    setSelectedStyle(null);
   };
 
   const favoriteRecipes = useMemo(() => {
@@ -817,10 +835,70 @@ export default function MealPlannerScreen() {
                 )
               ) : (
                 <View>
+                  {/* Quick-select filters */}
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Cuisine</Text>
+                    <View style={styles.filterChipsRow}>
+                      {["Italian", "Mexican", "Asian", "Indian", "Mediterranean", "American"].map(c => (
+                        <TouchableOpacity
+                          key={c}
+                          style={[styles.chip, selectedCuisine === c && styles.chipSelected]}
+                          onPress={() => setSelectedCuisine(selectedCuisine === c ? null : c)}
+                        >
+                          <Text style={[styles.chipText, selectedCuisine === c && styles.chipTextSelected]}>{c}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Prep Time</Text>
+                    <View style={styles.filterChipsRow}>
+                      {["Under 15 min", "Under 30 min", "Under 1 hr"].map(t => (
+                        <TouchableOpacity
+                          key={t}
+                          style={[styles.chip, selectedTime === t && styles.chipSelected]}
+                          onPress={() => setSelectedTime(selectedTime === t ? null : t)}
+                        >
+                          <Text style={[styles.chipText, selectedTime === t && styles.chipTextSelected]}>{t}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Dietary</Text>
+                    <View style={styles.filterChipsRow}>
+                      {["Vegetarian", "High Protein", "Low Carb", "Gluten Free"].map(d => (
+                        <TouchableOpacity
+                          key={d}
+                          style={[styles.chip, selectedDietary.includes(d) && styles.chipSelected]}
+                          onPress={() => setSelectedDietary(prev =>
+                            prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+                          )}
+                        >
+                          <Text style={[styles.chipText, selectedDietary.includes(d) && styles.chipTextSelected]}>{d}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Cooking Style</Text>
+                    <View style={styles.filterChipsRow}>
+                      {["One Pot", "Sheet Pan", "Slow Cooker", "Air Fryer", "No Cook"].map(s => (
+                        <TouchableOpacity
+                          key={s}
+                          style={[styles.chip, selectedStyle === s && styles.chipSelected]}
+                          onPress={() => setSelectedStyle(selectedStyle === s ? null : s)}
+                        >
+                          <Text style={[styles.chipText, selectedStyle === s && styles.chipTextSelected]}>{s}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
                   <View style={styles.generateSection}>
                     <TextInput
                       style={styles.promptInput}
-                      placeholder="Optional: dietary preferences, cuisine type..."
+                      placeholder="Anything else? (optional)"
                       value={recipePrompt}
                       onChangeText={setRecipePrompt}
                       multiline
@@ -1393,6 +1471,41 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 11,
     color: "#2e7d32",
+  },
+
+  filterSection: {
+    marginBottom: 14,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#888",
+    marginBottom: 6,
+  },
+  filterChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: "#e3ece5",
+    backgroundColor: "#f8faf8",
+  },
+  chipSelected: {
+    backgroundColor: "#2e7d32",
+    borderColor: "#2e7d32",
+  },
+  chipText: {
+    fontSize: 13,
+    color: "#333",
+  },
+  chipTextSelected: {
+    color: "#fff",
+    fontWeight: "600",
   },
 
   generateSection: {

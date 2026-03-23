@@ -76,6 +76,12 @@ export default function Recipes() {
   const [userPrompt, setUserPrompt] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
 
+  // Recipe filter selections
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+
   // Abort controller for cancelling recipe generation
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -223,8 +229,16 @@ export default function Recipes() {
     setLoading(true);
     setError('');
     try {
+      const parts: string[] = [];
+      if (selectedCuisine) parts.push(selectedCuisine + ' cuisine');
+      if (selectedTime) parts.push(selectedTime);
+      if (selectedDietary.length > 0) parts.push(selectedDietary.join(', '));
+      if (selectedStyle) parts.push(selectedStyle);
+      if (userPrompt.trim()) parts.push(userPrompt.trim());
+      const combinedPrompt = parts.join(', ') || undefined;
+
       const payload = {
-        userPrompt: userPrompt.trim() || undefined,
+        userPrompt: combinedPrompt,
       };
 
       const response = await api.post('/api/generate/recipes', payload, {
@@ -493,6 +507,46 @@ export default function Recipes() {
           color: var(--primary);
           border-bottom-color: var(--primary);
         }
+        .recipe-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem 1.5rem;
+        }
+        .filter-section {
+          min-width: 0;
+        }
+        .filter-label {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--muted);
+          margin-bottom: 0.3rem;
+        }
+        .filter-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.35rem;
+        }
+        .gen-chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.3rem 0.7rem;
+          border-radius: 100px;
+          border: 1px solid var(--border);
+          background: var(--bg-secondary);
+          font-size: 0.78rem;
+          cursor: pointer;
+          transition: all 0.15s;
+          color: var(--text);
+          font-family: inherit;
+        }
+        .gen-chip:hover {
+          border-color: var(--primary);
+        }
+        .gen-chip.selected {
+          background: var(--primary);
+          color: #fff;
+          border-color: var(--primary);
+        }
       `}</style>
 
       <section className='card table-card' style={{ padding: 0 }}>
@@ -521,22 +575,76 @@ export default function Recipes() {
           {tab !== 'history' && (
             <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {tab === 'generate' ? (
-                <>
-                  <input
-                    className='input'
-                    placeholder='Optional: Add requirements (e.g., vegetarian, quick)'
-                    value={userPrompt}
-                    onChange={(e) => setUserPrompt(e.target.value)}
-                    style={{ flex: 1, minWidth: 200 }}
-                  />
-                  <button
-                    className='btn-primary'
-                    onClick={handleGenerateRecipes}
-                    disabled={loading}
-                  >
-                    {loading ? 'Generating...' : 'Generate'}
-                  </button>
-                </>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div className="recipe-filters">
+                    <div className="filter-section">
+                      <div className="filter-label">Cuisine</div>
+                      <div className="filter-chips">
+                        {['Italian', 'Mexican', 'Asian', 'Indian', 'Mediterranean', 'American'].map(c => (
+                          <button
+                            key={c}
+                            className={`gen-chip${selectedCuisine === c ? ' selected' : ''}`}
+                            onClick={() => setSelectedCuisine(selectedCuisine === c ? null : c)}
+                          >{c}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="filter-section">
+                      <div className="filter-label">Prep Time</div>
+                      <div className="filter-chips">
+                        {['Under 15 min', 'Under 30 min', 'Under 1 hr'].map(t => (
+                          <button
+                            key={t}
+                            className={`gen-chip${selectedTime === t ? ' selected' : ''}`}
+                            onClick={() => setSelectedTime(selectedTime === t ? null : t)}
+                          >{t}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="filter-section">
+                      <div className="filter-label">Dietary</div>
+                      <div className="filter-chips">
+                        {['Vegetarian', 'High Protein', 'Low Carb', 'Gluten Free'].map(d => (
+                          <button
+                            key={d}
+                            className={`gen-chip${selectedDietary.includes(d) ? ' selected' : ''}`}
+                            onClick={() => setSelectedDietary(prev =>
+                              prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+                            )}
+                          >{d}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="filter-section">
+                      <div className="filter-label">Cooking Style</div>
+                      <div className="filter-chips">
+                        {['One Pot', 'Sheet Pan', 'Slow Cooker', 'Air Fryer', 'No Cook'].map(s => (
+                          <button
+                            key={s}
+                            className={`gen-chip${selectedStyle === s ? ' selected' : ''}`}
+                            onClick={() => setSelectedStyle(selectedStyle === s ? null : s)}
+                          >{s}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      className='input'
+                      placeholder='Anything else? (optional)'
+                      value={userPrompt}
+                      onChange={(e) => setUserPrompt(e.target.value)}
+                      style={{ flex: 1, minWidth: 200 }}
+                    />
+                    <button
+                      className='btn-primary'
+                      onClick={handleGenerateRecipes}
+                      disabled={loading}
+                    >
+                      {loading ? 'Generating...' : 'Generate'}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <>
                   <input
