@@ -1,5 +1,5 @@
 // app/main/scan.tsx
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Modal,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
@@ -167,9 +168,27 @@ interface ProductData {
   };
 }
 
+// Receipt scanning types
+interface ParsedReceiptItem {
+  name: string;
+  quantity: number;
+  unit?: string;
+  category?: string;
+  storageLocation?: string;
+  expected_expiration?: string;
+  _added?: boolean;
+  _skipped?: boolean;
+}
+
+type ScanMode = "barcode" | "receipt";
+
 export default function ScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
+  const scanLockRef = useRef(false);
+
+  // Mode toggle
+  const [scanMode, setScanMode] = useState<ScanMode>("barcode");
 
   const [scanned, setScanned] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
@@ -185,6 +204,21 @@ export default function ScanScreen() {
     name: "",
     quantity: "1",
     unit: "",
+    expirationDate: "",
+    category: "" as Category | "",
+    storageLocation: "Pantry" as StorageLocation,
+  });
+
+  // Receipt scanning state
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptItems, setReceiptItems] = useState<ParsedReceiptItem[]>([]);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [editingReceiptIndex, setEditingReceiptIndex] = useState<number | null>(null);
+  const [bulkAdding, setBulkAdding] = useState(false);
+  const [receiptFormData, setReceiptFormData] = useState({
+    name: "",
+    quantity: "1",
+    unit: "" as string,
     expirationDate: "",
     category: "" as Category | "",
     storageLocation: "Pantry" as StorageLocation,
@@ -321,6 +355,8 @@ export default function ScanScreen() {
   };
 
   const handleBarCodeScanned = ({ data }: any) => {
+    if (scanLockRef.current) return;
+    scanLockRef.current = true;
     setScanned(true);
     setScannedBarcode(data);
     fetchProductData(data);
@@ -335,6 +371,7 @@ export default function ScanScreen() {
   };
 
   const handleScanAgain = () => {
+    scanLockRef.current = false;
     setScanned(false);
     setScannedBarcode(null);
     setProductData(null);
@@ -406,289 +443,538 @@ export default function ScanScreen() {
     setShowAddModal(true);
   };
 
+  // --- Receipt scanning functions ---
+  const handlePickReceiptImage = async (useCamera: boolean) => {
+    try {
+      let result;
+      if (useCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert("Permission needed", "Camera permission is required to take a photo.");
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],
+          quality: 0.85,
+        });
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert("Permission needed", "Photo library permission is required.");
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          quality: 0.85,
+        });
+      }
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      setReceiptLoading(true);
+      setReceiptError(null);
+      setReceiptItems([]);
+
+      const formBody = new FormData();
+      formBody.append("receipt", {
+        uri: asset.uri,
+        name: "receipt.jpg",
+        type: asset.mimeType || "image/jpeg",
+      } as any);
+
+      const response = await api.post("/api/receipt/upload", formBody, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 120000,
+      });
+
+      if (response.data?.success && response.data?.groceries?.length) {
+        setReceiptItems(
+          response.data.groceries.map((g: any) => ({
+            name: g.name,
+            quantity: g.quantity || 1,
+            unit: g.unit || "count",
+            category: g.category || "Other",
+            storageLocation: g.storageLocation || "Pantry",
+            expected_expiration: g.expected_expiration || "",
+            _added: false,
+            _skipped: false,
+          }))
+        );
+      } else {
+        setReceiptError("No grocery items found on receipt.");
+      }
+    } catch (err: any) {
+      console.error("Receipt upload error:", err);
+      setReceiptError(err.response?.data?.message || err.message || "Failed to process receipt");
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
+
+  const handleEditReceiptItem = (index: number) => {
+    const item = receiptItems[index];
+    setReceiptFormData({
+      name: item.name,
+      quantity: String(item.quantity),
+      unit: item.unit || "",
+      expirationDate: item.expected_expiration || "",
+      category: (item.category as Category) || "",
+      storageLocation: (item.storageLocation as StorageLocation) || "Pantry",
+    });
+    setEditingReceiptIndex(index);
+  };
+
+  const handleSaveReceiptEdit = () => {
+    if (editingReceiptIndex === null) return;
+    setReceiptItems((prev) =>
+      prev.map((item, i) =>
+        i === editingReceiptIndex
+          ? {
+              ...item,
+              name: receiptFormData.name,
+              quantity: parseFloat(receiptFormData.quantity) || 1,
+              unit: receiptFormData.unit,
+              category: receiptFormData.category,
+              storageLocation: receiptFormData.storageLocation,
+              expected_expiration: receiptFormData.expirationDate,
+            }
+          : item
+      )
+    );
+    setEditingReceiptIndex(null);
+  };
+
+  const handleSkipReceiptItem = (index: number) => {
+    setReceiptItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, _skipped: !item._skipped } : item))
+    );
+  };
+
+  const handleRemoveReceiptItem = (index: number) => {
+    setReceiptItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddSingleReceiptItem = async (index: number) => {
+    const item = receiptItems[index];
+    try {
+      await api.post("/api/pantry", {
+        name: item.name.trim(),
+        quantity: item.quantity,
+        unit: item.unit || undefined,
+        expirationDate: item.expected_expiration || undefined,
+        category: item.category || undefined,
+        storageLocation: item.storageLocation || "Pantry",
+      });
+      setReceiptItems((prev) =>
+        prev.map((it, i) => (i === index ? { ...it, _added: true } : it))
+      );
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.message || "Failed to add item");
+    }
+  };
+
+  const handleAddAllReceiptItems = async () => {
+    setBulkAdding(true);
+    const pending = receiptItems
+      .map((item, i) => ({ item, i }))
+      .filter(({ item }) => !item._added && !item._skipped);
+
+    for (const { item, i } of pending) {
+      try {
+        await api.post("/api/pantry", {
+          name: item.name.trim(),
+          quantity: item.quantity,
+          unit: item.unit || undefined,
+          expirationDate: item.expected_expiration || undefined,
+          category: item.category || undefined,
+          storageLocation: item.storageLocation || "Pantry",
+        });
+        setReceiptItems((prev) =>
+          prev.map((it, idx) => (idx === i ? { ...it, _added: true } : it))
+        );
+      } catch (err: any) {
+        console.error(`Failed to add ${item.name}:`, err);
+      }
+    }
+    setBulkAdding(false);
+    const addedCount = receiptItems.filter((it) => it._added).length + pending.length;
+    Alert.alert("Done", `${addedCount} items added to pantry!`, [
+      { text: "Scan More", onPress: () => { setReceiptItems([]); setReceiptError(null); } },
+      { text: "Go to Pantry", onPress: () => router.replace("/main/pantry") },
+    ]);
+  };
+
+  const handleFinishReceipt = () => {
+    setReceiptItems([]);
+    setReceiptError(null);
+    setScanMode("barcode");
+  };
+
+  const pendingReceiptCount = receiptItems.filter((i) => !i._added && !i._skipped).length;
+  const addedReceiptCount = receiptItems.filter((i) => i._added).length;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.fullScreen}>
-        {/* Camera fills the background */}
-        <CameraView
-          style={StyleSheet.absoluteFillObject}
-          facing="back"
-          enableTorch={torchOn}
-          barcodeScannerSettings={{
-            barcodeTypes: [
-              "qr",
-              "ean13",
-              "ean8",
-              "upc_a",
-              "upc_e",
-              "code39",
-              "code128",
-            ],
-          }}
-          onBarcodeScanned={scanned ? undefined : (e) => handleBarCodeScanned(e)}
-        />
-
-        {/* Transparent Header Overlay */}
-        <View style={styles.headerBar}>
-          {/* Arrow back to dashboard */}
+        {/* Mode toggle tabs */}
+        <View style={styles.modeTabBar}>
           <TouchableOpacity
             style={styles.headerLeft}
             onPress={handleBackToDashboard}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={32} color="#2e7d32" />
+            <Ionicons name="arrow-back" size={24} color="#2e7d32" />
           </TouchableOpacity>
-
-          {/* Center logo */}
-          <Image source={Logo} style={styles.headerLogo} resizeMode="contain" />
-
-          {/* Torch toggle on the right */}
-          <TouchableOpacity
-            style={styles.headerRight}
-            onPress={toggleTorch}
-            activeOpacity={0.7}
-          >
-            <Image
-              source={torchOn ? LightOnIcon : LightIcon}
-              style={styles.lightIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Scan box overlay */}
-        <View style={styles.overlay}>
-          <View style={styles.scanBox}>
-            <View style={[styles.corner, styles.topLeft]} />
-            <View style={[styles.corner, styles.topRight]} />
-            <View style={[styles.corner, styles.bottomLeft]} />
-            <View style={[styles.corner, styles.bottomRight]} />
+          <View style={styles.modeTabRow}>
+            <TouchableOpacity
+              style={[styles.modeTab, scanMode === "barcode" && styles.modeTabActive]}
+              onPress={() => setScanMode("barcode")}
+            >
+              <Ionicons name="barcode-outline" size={18} color={scanMode === "barcode" ? "#fff" : "#2e7d32"} />
+              <Text style={[styles.modeTabText, scanMode === "barcode" && styles.modeTabTextActive]}>Barcode</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeTab, scanMode === "receipt" && styles.modeTabActive]}
+              onPress={() => setScanMode("receipt")}
+            >
+              <Ionicons name="receipt-outline" size={18} color={scanMode === "receipt" ? "#fff" : "#2e7d32"} />
+              <Text style={[styles.modeTabText, scanMode === "receipt" && styles.modeTabTextActive]}>Receipt</Text>
+            </TouchableOpacity>
           </View>
-          {!scanned && (
-            <Text style={styles.scanHint}>Position barcode within the frame</Text>
-          )}
+          {scanMode === "barcode" ? (
+            <TouchableOpacity style={styles.headerRight} onPress={toggleTorch} activeOpacity={0.7}>
+              <Image source={torchOn ? LightOnIcon : LightIcon} style={styles.lightIcon} resizeMode="contain" />
+            </TouchableOpacity>
+          ) : <View style={styles.headerRight} />}
         </View>
 
-        {/* Result box */}
-        {(loading || productData || error) && (
-          <View style={styles.resultBox}>
-            <ScrollView style={styles.resultScroll}>
-              {loading && (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color="#2e7d32" size="large" />
-                  <Text style={styles.loadingText}>
-                    Fetching product information...
-                  </Text>
-                </View>
+        {/* ===== BARCODE MODE ===== */}
+        {scanMode === "barcode" && (
+          <View style={{ flex: 1 }}>
+            <CameraView
+              style={StyleSheet.absoluteFillObject}
+              facing="back"
+              enableTorch={torchOn}
+              barcodeScannerSettings={{
+                barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code39", "code128"],
+              }}
+              onBarcodeScanned={scanned ? undefined : (e) => handleBarCodeScanned(e)}
+            />
+
+            {/* Scan box overlay */}
+            <View style={styles.overlay}>
+              <View style={styles.scanBox}>
+                <View style={[styles.corner, styles.topLeft]} />
+                <View style={[styles.corner, styles.topRight]} />
+                <View style={[styles.corner, styles.bottomLeft]} />
+                <View style={[styles.corner, styles.bottomRight]} />
+              </View>
+              {!scanned && (
+                <Text style={styles.scanHint}>Position barcode within the frame</Text>
               )}
-
-              {error && (
-                <View>
-                  <Text style={styles.errorText}>{error}</Text>
-                  <Text style={styles.barcodeText}>Barcode: {scannedBarcode}</Text>
-                  <Text style={styles.helperText}>
-                    You can still add this item manually
-                  </Text>
-                </View>
-              )}
-
-              {productData && (
-                <View>
-                  {productData.image_url && (
-                    <Image
-                      source={{ uri: productData.image_url }}
-                      style={styles.productImage}
-                      resizeMode="contain"
-                    />
-                  )}
-
-                  <Text style={styles.productTitle}>
-                    {productData.product_name || "Unknown Product"}
-                  </Text>
-
-                  {productData.brands && (
-                    <Text style={styles.productBrand}>{productData.brands}</Text>
-                  )}
-
-                  {/* Quick Info Row */}
-                  <View style={styles.quickInfoRow}>
-                    {productData.quantity && (
-                      <View style={styles.quickInfoItem}>
-                        <Ionicons name="cube-outline" size={14} color="#aaa" />
-                        <Text style={styles.quickInfoText}>{productData.quantity}</Text>
-                      </View>
-                    )}
-                    {productData.serving_size && (
-                      <View style={styles.quickInfoItem}>
-                        <Ionicons name="restaurant-outline" size={14} color="#aaa" />
-                        <Text style={styles.quickInfoText}>Serving: {productData.serving_size}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Health Scores Row */}
-                  <View style={styles.scoresRow}>
-                    {productData.nutriscore_grade && (
-                      <View style={styles.scoreItem}>
-                        <Text style={styles.scoreLabel}>Nutri-Score</Text>
-                        <View style={[styles.scoreBadge, { backgroundColor: getNutriScoreColor(productData.nutriscore_grade) }]}>
-                          <Text style={styles.scoreBadgeText}>{productData.nutriscore_grade.toUpperCase()}</Text>
-                        </View>
-                      </View>
-                    )}
-                    {productData.nova_group && (
-                      <View style={styles.scoreItem}>
-                        <Text style={styles.scoreLabel}>NOVA</Text>
-                        <View style={[styles.scoreBadge, { backgroundColor: getNovaColor(productData.nova_group) }]}>
-                          <Text style={styles.scoreBadgeText}>{productData.nova_group}</Text>
-                        </View>
-                      </View>
-                    )}
-                    {productData.ecoscore_grade && productData.ecoscore_grade !== 'unknown' && (
-                      <View style={styles.scoreItem}>
-                        <Text style={styles.scoreLabel}>Eco-Score</Text>
-                        <View style={[styles.scoreBadge, { backgroundColor: getNutriScoreColor(productData.ecoscore_grade) }]}>
-                          <Text style={styles.scoreBadgeText}>{productData.ecoscore_grade.toUpperCase()}</Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Nutrition Facts */}
-                  {productData.nutriments && (
-                    <View style={styles.nutritionSection}>
-                      <Text style={styles.sectionLabel}>Nutrition per 100g</Text>
-                      <View style={styles.nutritionGrid}>
-                        {productData.nutriments["energy-kcal_100g"] != null && (
-                          <View style={styles.nutritionItem}>
-                            <Text style={styles.nutritionValue}>{Math.round(productData.nutriments["energy-kcal_100g"])}</Text>
-                            <Text style={styles.nutritionLabel}>kcal</Text>
-                          </View>
-                        )}
-                        {productData.nutriments.proteins_100g != null && (
-                          <View style={styles.nutritionItem}>
-                            <Text style={styles.nutritionValue}>{productData.nutriments.proteins_100g.toFixed(1)}g</Text>
-                            <Text style={styles.nutritionLabel}>protein</Text>
-                          </View>
-                        )}
-                        {productData.nutriments.carbohydrates_100g != null && (
-                          <View style={styles.nutritionItem}>
-                            <Text style={styles.nutritionValue}>{productData.nutriments.carbohydrates_100g.toFixed(1)}g</Text>
-                            <Text style={styles.nutritionLabel}>carbs</Text>
-                          </View>
-                        )}
-                        {productData.nutriments.fat_100g != null && (
-                          <View style={styles.nutritionItem}>
-                            <Text style={styles.nutritionValue}>{productData.nutriments.fat_100g.toFixed(1)}g</Text>
-                            <Text style={styles.nutritionLabel}>fat</Text>
-                          </View>
-                        )}
-                      </View>
-                      {/* Additional nutrition info */}
-                      <View style={styles.nutritionExtra}>
-                        {productData.nutriments.sugars_100g != null && (
-                          <Text style={styles.nutritionExtraText}>Sugar: {productData.nutriments.sugars_100g.toFixed(1)}g</Text>
-                        )}
-                        {productData.nutriments.fiber_100g != null && (
-                          <Text style={styles.nutritionExtraText}>Fiber: {productData.nutriments.fiber_100g.toFixed(1)}g</Text>
-                        )}
-                        {productData.nutriments.salt_100g != null && (
-                          <Text style={styles.nutritionExtraText}>Salt: {productData.nutriments.salt_100g.toFixed(2)}g</Text>
-                        )}
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Nutrient Levels (warnings) */}
-                  {productData.nutrient_levels && Object.keys(productData.nutrient_levels).length > 0 && (
-                    <View style={styles.warningsSection}>
-                      {productData.nutrient_levels.fat === 'high' && (
-                        <View style={[styles.warningBadge, styles.warningHigh]}>
-                          <Text style={styles.warningText}>High Fat</Text>
-                        </View>
-                      )}
-                      {productData.nutrient_levels["saturated-fat"] === 'high' && (
-                        <View style={[styles.warningBadge, styles.warningHigh]}>
-                          <Text style={styles.warningText}>High Sat. Fat</Text>
-                        </View>
-                      )}
-                      {productData.nutrient_levels.sugars === 'high' && (
-                        <View style={[styles.warningBadge, styles.warningHigh]}>
-                          <Text style={styles.warningText}>High Sugar</Text>
-                        </View>
-                      )}
-                      {productData.nutrient_levels.salt === 'high' && (
-                        <View style={[styles.warningBadge, styles.warningHigh]}>
-                          <Text style={styles.warningText}>High Salt</Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Allergens */}
-                  {productData.allergens_tags && productData.allergens_tags.length > 0 && (
-                    <View style={styles.allergensSection}>
-                      <Text style={styles.sectionLabel}>⚠️ Allergens</Text>
-                      <View style={styles.allergensRow}>
-                        {productData.allergens_tags.map((allergen, idx) => (
-                          <View key={idx} style={styles.allergenBadge}>
-                            <Text style={styles.allergenText}>
-                              {allergen.replace('en:', '').replace(/-/g, ' ')}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Labels (Vegan, Organic, etc.) */}
-                  {productData.labels_tags && productData.labels_tags.length > 0 && (
-                    <View style={styles.labelsSection}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {productData.labels_tags.slice(0, 6).map((label, idx) => (
-                          <View key={idx} style={styles.labelBadge}>
-                            <Text style={styles.labelText}>
-                              {label.replace('en:', '').replace(/-/g, ' ')}
-                            </Text>
-                          </View>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-
-                  <Text style={styles.barcodeText}>Barcode: {scannedBarcode}</Text>
-                </View>
-              )}
-            </ScrollView>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={styles.scanAgainButton}
-                onPress={handleScanAgain}
-              >
-                <Ionicons name="refresh" size={18} color="#fff" style={{ marginRight: 6 }} /><Text style={styles.scanAgainText}>Scan Again</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.addToPantryButton}
-                onPress={error ? handleManualAddToPantry : handleAddToPantry}
-              >
-                <Ionicons name="add-circle" size={18} color="#fff" style={{ marginRight: 6 }} /><Text style={styles.addToPantryText}>Add to Pantry</Text>
-              </TouchableOpacity>
             </View>
+
+            {/* Result box */}
+            {(loading || productData || error) && (
+              <View style={styles.resultBox}>
+                <ScrollView style={styles.resultScroll}>
+                  {loading && (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color="#2e7d32" size="large" />
+                      <Text style={styles.loadingText}>Fetching product information...</Text>
+                    </View>
+                  )}
+                  {error && !productData && (
+                    <View>
+                      <Text style={styles.errorText}>{error}</Text>
+                      <Text style={styles.barcodeText}>Barcode: {scannedBarcode}</Text>
+                      <Text style={styles.helperText}>You can still add this item manually</Text>
+                    </View>
+                  )}
+                  {productData && (
+                    <View>
+                      {productData.image_url && (
+                        <Image source={{ uri: productData.image_url }} style={styles.productImage} resizeMode="contain" />
+                      )}
+                      <Text style={styles.productTitle}>{productData.product_name || "Unknown Product"}</Text>
+                      {productData.brands && <Text style={styles.productBrand}>{productData.brands}</Text>}
+                      <View style={styles.quickInfoRow}>
+                        {productData.quantity && (
+                          <View style={styles.quickInfoItem}>
+                            <Ionicons name="cube-outline" size={14} color="#aaa" />
+                            <Text style={styles.quickInfoText}>{productData.quantity}</Text>
+                          </View>
+                        )}
+                        {productData.serving_size && (
+                          <View style={styles.quickInfoItem}>
+                            <Ionicons name="restaurant-outline" size={14} color="#aaa" />
+                            <Text style={styles.quickInfoText}>Serving: {productData.serving_size}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.scoresRow}>
+                        {productData.nutriscore_grade && (
+                          <View style={styles.scoreItem}>
+                            <Text style={styles.scoreLabel}>Nutri-Score</Text>
+                            <View style={[styles.scoreBadge, { backgroundColor: getNutriScoreColor(productData.nutriscore_grade) }]}>
+                              <Text style={styles.scoreBadgeText}>{productData.nutriscore_grade.toUpperCase()}</Text>
+                            </View>
+                          </View>
+                        )}
+                        {productData.nova_group && (
+                          <View style={styles.scoreItem}>
+                            <Text style={styles.scoreLabel}>NOVA</Text>
+                            <View style={[styles.scoreBadge, { backgroundColor: getNovaColor(productData.nova_group) }]}>
+                              <Text style={styles.scoreBadgeText}>{productData.nova_group}</Text>
+                            </View>
+                          </View>
+                        )}
+                        {productData.ecoscore_grade && productData.ecoscore_grade !== 'unknown' && (
+                          <View style={styles.scoreItem}>
+                            <Text style={styles.scoreLabel}>Eco-Score</Text>
+                            <View style={[styles.scoreBadge, { backgroundColor: getNutriScoreColor(productData.ecoscore_grade) }]}>
+                              <Text style={styles.scoreBadgeText}>{productData.ecoscore_grade.toUpperCase()}</Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                      {productData.nutriments && (
+                        <View style={styles.nutritionSection}>
+                          <Text style={styles.sectionLabel}>Nutrition per 100g</Text>
+                          <View style={styles.nutritionGrid}>
+                            {productData.nutriments["energy-kcal_100g"] != null && (
+                              <View style={styles.nutritionItem}>
+                                <Text style={styles.nutritionValue}>{Math.round(productData.nutriments["energy-kcal_100g"])}</Text>
+                                <Text style={styles.nutritionLabel}>kcal</Text>
+                              </View>
+                            )}
+                            {productData.nutriments.proteins_100g != null && (
+                              <View style={styles.nutritionItem}>
+                                <Text style={styles.nutritionValue}>{productData.nutriments.proteins_100g.toFixed(1)}g</Text>
+                                <Text style={styles.nutritionLabel}>protein</Text>
+                              </View>
+                            )}
+                            {productData.nutriments.carbohydrates_100g != null && (
+                              <View style={styles.nutritionItem}>
+                                <Text style={styles.nutritionValue}>{productData.nutriments.carbohydrates_100g.toFixed(1)}g</Text>
+                                <Text style={styles.nutritionLabel}>carbs</Text>
+                              </View>
+                            )}
+                            {productData.nutriments.fat_100g != null && (
+                              <View style={styles.nutritionItem}>
+                                <Text style={styles.nutritionValue}>{productData.nutriments.fat_100g.toFixed(1)}g</Text>
+                                <Text style={styles.nutritionLabel}>fat</Text>
+                              </View>
+                            )}
+                          </View>
+                          <View style={styles.nutritionExtra}>
+                            {productData.nutriments.sugars_100g != null && (
+                              <Text style={styles.nutritionExtraText}>Sugar: {productData.nutriments.sugars_100g.toFixed(1)}g</Text>
+                            )}
+                            {productData.nutriments.fiber_100g != null && (
+                              <Text style={styles.nutritionExtraText}>Fiber: {productData.nutriments.fiber_100g.toFixed(1)}g</Text>
+                            )}
+                            {productData.nutriments.salt_100g != null && (
+                              <Text style={styles.nutritionExtraText}>Salt: {productData.nutriments.salt_100g.toFixed(2)}g</Text>
+                            )}
+                          </View>
+                        </View>
+                      )}
+                      {productData.nutrient_levels && Object.keys(productData.nutrient_levels).length > 0 && (
+                        <View style={styles.warningsSection}>
+                          {productData.nutrient_levels.fat === 'high' && <View style={[styles.warningBadge, styles.warningHigh]}><Text style={styles.warningText}>High Fat</Text></View>}
+                          {productData.nutrient_levels["saturated-fat"] === 'high' && <View style={[styles.warningBadge, styles.warningHigh]}><Text style={styles.warningText}>High Sat. Fat</Text></View>}
+                          {productData.nutrient_levels.sugars === 'high' && <View style={[styles.warningBadge, styles.warningHigh]}><Text style={styles.warningText}>High Sugar</Text></View>}
+                          {productData.nutrient_levels.salt === 'high' && <View style={[styles.warningBadge, styles.warningHigh]}><Text style={styles.warningText}>High Salt</Text></View>}
+                        </View>
+                      )}
+                      {productData.allergens_tags && productData.allergens_tags.length > 0 && (
+                        <View style={styles.allergensSection}>
+                          <Text style={styles.sectionLabel}>Allergens</Text>
+                          <View style={styles.allergensRow}>
+                            {productData.allergens_tags.map((allergen, idx) => (
+                              <View key={idx} style={styles.allergenBadge}>
+                                <Text style={styles.allergenText}>{allergen.replace('en:', '').replace(/-/g, ' ')}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                      {productData.labels_tags && productData.labels_tags.length > 0 && (
+                        <View style={styles.labelsSection}>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {productData.labels_tags.slice(0, 6).map((label, idx) => (
+                              <View key={idx} style={styles.labelBadge}>
+                                <Text style={styles.labelText}>{label.replace('en:', '').replace(/-/g, ' ')}</Text>
+                              </View>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                      <Text style={styles.barcodeText}>Barcode: {scannedBarcode}</Text>
+                    </View>
+                  )}
+                </ScrollView>
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity style={styles.scanAgainButton} onPress={handleScanAgain}>
+                    <Ionicons name="refresh" size={18} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={styles.scanAgainText}>Scan Again</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.addToPantryButton} onPress={error ? handleManualAddToPantry : handleAddToPantry}>
+                    <Ionicons name="add-circle" size={18} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={styles.addToPantryText}>Add to Pantry</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         )}
 
-        {/* Full-width bottom Back bar */}
-        <TouchableOpacity
-          style={styles.bottomBar}
-          onPress={handleBackToDashboard}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.bottomLabel}>Back to Dashboard</Text>
-        </TouchableOpacity>
+        {/* ===== RECEIPT MODE ===== */}
+        {scanMode === "receipt" && (
+          <View style={styles.receiptContainer}>
+            {receiptItems.length === 0 && !receiptLoading && (
+              <View style={styles.receiptUploadArea}>
+                <Ionicons name="receipt-outline" size={64} color="#2e7d32" />
+                <Text style={styles.receiptTitle}>Scan a Receipt</Text>
+                <Text style={styles.receiptSubtitle}>
+                  Take a photo of your grocery receipt or pick one from your gallery to automatically add items.
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.receiptActionButton}
+                  onPress={() => handlePickReceiptImage(true)}
+                >
+                  <Ionicons name="camera" size={22} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.receiptActionText}>Take Photo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.receiptActionButton, { backgroundColor: "#555" }]}
+                  onPress={() => handlePickReceiptImage(false)}
+                >
+                  <Ionicons name="images" size={22} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.receiptActionText}>Pick from Gallery</Text>
+                </TouchableOpacity>
+
+                {receiptError && (
+                  <Text style={[styles.errorText, { marginTop: 16 }]}>{receiptError}</Text>
+                )}
+              </View>
+            )}
+
+            {receiptLoading && (
+              <View style={styles.receiptUploadArea}>
+                <ActivityIndicator color="#2e7d32" size="large" />
+                <Text style={styles.receiptSubtitle}>Processing receipt...</Text>
+                <Text style={[styles.receiptSubtitle, { fontSize: 12, marginTop: 4 }]}>
+                  This may take a moment
+                </Text>
+              </View>
+            )}
+
+            {receiptItems.length > 0 && !receiptLoading && (
+              <View style={{ flex: 1 }}>
+                {/* Progress bar */}
+                <View style={styles.receiptProgress}>
+                  <Text style={styles.receiptProgressText}>
+                    {addedReceiptCount} added · {receiptItems.filter(i => i._skipped).length} skipped · {pendingReceiptCount} remaining
+                  </Text>
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { flex: addedReceiptCount || 0.01 }]} />
+                    <View style={[styles.progressBarSkipped, { flex: receiptItems.filter(i => i._skipped).length || 0.01 }]} />
+                    <View style={[styles.progressBarPending, { flex: pendingReceiptCount || 0.01 }]} />
+                  </View>
+                </View>
+
+                <ScrollView style={styles.receiptList} contentContainerStyle={{ paddingBottom: 120 }}>
+                  {receiptItems.map((item, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.receiptItemCard,
+                        item._added && styles.receiptItemAdded,
+                        item._skipped && styles.receiptItemSkipped,
+                      ]}
+                    >
+                      <View style={styles.receiptItemHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.receiptItemName, item._added && { color: "#2e7d32" }, item._skipped && { color: "#999" }]}>
+                            {item._added && <Ionicons name="checkmark-circle" size={16} color="#2e7d32" />}
+                            {item._skipped && <Ionicons name="remove-circle" size={16} color="#999" />}
+                            {" "}{item.name}
+                          </Text>
+                          <Text style={styles.receiptItemMeta}>
+                            {item.quantity} {item.unit} · {item.category} · {item.storageLocation}
+                            {item.expected_expiration ? ` · Exp: ${item.expected_expiration}` : ""}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {!item._added && !item._skipped && (
+                        <View style={styles.receiptItemActions}>
+                          <TouchableOpacity style={styles.receiptItemBtn} onPress={() => handleEditReceiptItem(index)}>
+                            <Ionicons name="create-outline" size={16} color="#2e7d32" />
+                            <Text style={styles.receiptItemBtnText}>Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.receiptItemBtn} onPress={() => handleAddSingleReceiptItem(index)}>
+                            <Ionicons name="add-circle-outline" size={16} color="#2e7d32" />
+                            <Text style={styles.receiptItemBtnText}>Add</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.receiptItemBtn} onPress={() => handleSkipReceiptItem(index)}>
+                            <Ionicons name="eye-off-outline" size={16} color="#888" />
+                            <Text style={[styles.receiptItemBtnText, { color: "#888" }]}>Skip</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.receiptItemBtn} onPress={() => handleRemoveReceiptItem(index)}>
+                            <Ionicons name="trash-outline" size={16} color="#d32f2f" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {item._skipped && (
+                        <TouchableOpacity style={styles.receiptItemBtn} onPress={() => handleSkipReceiptItem(index)}>
+                          <Text style={[styles.receiptItemBtnText, { color: "#2e7d32" }]}>Undo</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Bottom actions */}
+                <View style={styles.receiptBottomActions}>
+                  {pendingReceiptCount > 0 && (
+                    <TouchableOpacity
+                      style={[styles.receiptActionButton, { flex: 1, marginRight: 8 }]}
+                      onPress={handleAddAllReceiptItems}
+                      disabled={bulkAdding}
+                    >
+                      <Text style={styles.receiptActionText}>
+                        {bulkAdding ? "Adding..." : `Add All (${pendingReceiptCount})`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.receiptActionButton, { flex: 1, backgroundColor: "#555" }]}
+                    onPress={handleFinishReceipt}
+                  >
+                    <Text style={styles.receiptActionText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Full-width bottom Back bar (barcode mode only, receipt has its own) */}
+        {scanMode === "barcode" && (
+          <TouchableOpacity style={styles.bottomBar} onPress={handleBackToDashboard} activeOpacity={0.8}>
+            <Text style={styles.bottomLabel}>Back to Dashboard</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Add to Pantry Modal */}
+      {/* Add to Pantry Modal (barcode) */}
       <Modal visible={showAddModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -698,86 +984,89 @@ export default function ScanScreen() {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-
             <ScrollView style={styles.modalForm}>
               <Text style={styles.label}>Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-                placeholder="Item name"
-              />
-
+              <TextInput style={styles.input} value={formData.name} onChangeText={(text) => setFormData({ ...formData, name: text })} placeholder="Item name" />
               <Text style={styles.label}>Quantity</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.quantity}
-                onChangeText={(text) => setFormData({ ...formData, quantity: text })}
-                keyboardType="numeric"
-                placeholder="1"
-              />
-
+              <TextInput style={styles.input} value={formData.quantity} onChangeText={(text) => setFormData({ ...formData, quantity: text })} keyboardType="numeric" placeholder="1" />
               <Text style={styles.label}>Unit</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                 {UNITS.map((u) => (
-                  <TouchableOpacity
-                    key={u || "none"}
-                    style={[styles.chip, formData.unit === u && styles.chipActive]}
-                    onPress={() => setFormData({ ...formData, unit: u })}
-                  >
-                    <Text style={[styles.chipText, formData.unit === u && styles.chipTextActive]}>
-                      {u || "None"}
-                    </Text>
+                  <TouchableOpacity key={u || "none"} style={[styles.chip, formData.unit === u && styles.chipActive]} onPress={() => setFormData({ ...formData, unit: u })}>
+                    <Text style={[styles.chipText, formData.unit === u && styles.chipTextActive]}>{u || "None"}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-
               <Text style={styles.label}>Expiration Date</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.expirationDate}
-                onChangeText={(text) => setFormData({ ...formData, expirationDate: text })}
-                placeholder="YYYY-MM-DD"
-              />
-
+              <TextInput style={styles.input} value={formData.expirationDate} onChangeText={(text) => setFormData({ ...formData, expirationDate: text })} placeholder="YYYY-MM-DD" />
               <Text style={styles.label}>Category</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                 {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.chip, formData.category === cat && styles.chipActive]}
-                    onPress={() => setFormData({ ...formData, category: cat })}
-                  >
-                    <Text style={[styles.chipText, formData.category === cat && styles.chipTextActive]}>
-                      {cat}
-                    </Text>
+                  <TouchableOpacity key={cat} style={[styles.chip, formData.category === cat && styles.chipActive]} onPress={() => setFormData({ ...formData, category: cat })}>
+                    <Text style={[styles.chipText, formData.category === cat && styles.chipTextActive]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-
               <Text style={styles.label}>Storage Location</Text>
               <View style={styles.locationRow}>
                 {STORAGE_LOCATIONS.map((loc) => (
-                  <TouchableOpacity
-                    key={loc}
-                    style={[styles.locationChip, formData.storageLocation === loc && styles.locationChipActive]}
-                    onPress={() => setFormData({ ...formData, storageLocation: loc })}
-                  >
-                    <Text
-                      style={[
-                        styles.locationChipText,
-                        formData.storageLocation === loc && styles.locationChipTextActive,
-                      ]}
-                    >
-                      {loc}
-                    </Text>
+                  <TouchableOpacity key={loc} style={[styles.locationChip, formData.storageLocation === loc && styles.locationChipActive]} onPress={() => setFormData({ ...formData, storageLocation: loc })}>
+                    <Text style={[styles.locationChipText, formData.storageLocation === loc && styles.locationChipTextActive]}>{loc}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </ScrollView>
-
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveToPantry} disabled={addingToPantry}>
               <Text style={styles.saveButtonText}>{addingToPantry ? "Adding..." : "Add to Pantry"}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Receipt Item Modal */}
+      <Modal visible={editingReceiptIndex !== null} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Item</Text>
+              <TouchableOpacity onPress={() => setEditingReceiptIndex(null)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalForm}>
+              <Text style={styles.label}>Name *</Text>
+              <TextInput style={styles.input} value={receiptFormData.name} onChangeText={(text) => setReceiptFormData({ ...receiptFormData, name: text })} placeholder="Item name" />
+              <Text style={styles.label}>Quantity</Text>
+              <TextInput style={styles.input} value={receiptFormData.quantity} onChangeText={(text) => setReceiptFormData({ ...receiptFormData, quantity: text })} keyboardType="numeric" placeholder="1" />
+              <Text style={styles.label}>Unit</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                {UNITS.map((u) => (
+                  <TouchableOpacity key={u || "none"} style={[styles.chip, receiptFormData.unit === u && styles.chipActive]} onPress={() => setReceiptFormData({ ...receiptFormData, unit: u })}>
+                    <Text style={[styles.chipText, receiptFormData.unit === u && styles.chipTextActive]}>{u || "None"}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={styles.label}>Expiration Date</Text>
+              <TextInput style={styles.input} value={receiptFormData.expirationDate} onChangeText={(text) => setReceiptFormData({ ...receiptFormData, expirationDate: text })} placeholder="YYYY-MM-DD" />
+              <Text style={styles.label}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                {CATEGORIES.map((cat) => (
+                  <TouchableOpacity key={cat} style={[styles.chip, receiptFormData.category === cat && styles.chipActive]} onPress={() => setReceiptFormData({ ...receiptFormData, category: cat })}>
+                    <Text style={[styles.chipText, receiptFormData.category === cat && styles.chipTextActive]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={styles.label}>Storage Location</Text>
+              <View style={styles.locationRow}>
+                {STORAGE_LOCATIONS.map((loc) => (
+                  <TouchableOpacity key={loc} style={[styles.locationChip, receiptFormData.storageLocation === loc && styles.locationChipActive]} onPress={() => setReceiptFormData({ ...receiptFormData, storageLocation: loc })}>
+                    <Text style={[styles.locationChipText, receiptFormData.storageLocation === loc && styles.locationChipTextActive]}>{loc}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveReceiptEdit}>
+              <Text style={styles.saveButtonText}>Save Changes</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -799,36 +1088,61 @@ const getNutriScoreColor = (grade: string) => {
 
 const getNovaColor = (group: number) => {
   switch (group) {
-    case 1: return "#038141"; // Unprocessed
-    case 2: return "#85bb2f"; // Processed culinary ingredients
-    case 3: return "#fecb02"; // Processed foods
-    case 4: return "#e63e11"; // Ultra-processed
+    case 1: return "#038141";
+    case 2: return "#85bb2f";
+    case 3: return "#fecb02";
+    case 4: return "#e63e11";
     default: return "#888";
   }
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
+  fullScreen: { flex: 1, position: "relative" },
 
-  fullScreen: {
-    flex: 1,
-    position: "relative",
-  },
-
-  /*Transparent Header Overlay*/
-  headerBar: {
+  /* Mode toggle tabs */
+  modeTabBar: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 110,
+    height: 60,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
-    backgroundColor: "transparent",
-    zIndex: 10,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    zIndex: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e3ece5",
   },
+  modeTabRow: {
+    flexDirection: "row",
+    backgroundColor: "#e8f5e9",
+    borderRadius: 20,
+    padding: 3,
+  },
+  modeTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  modeTabActive: {
+    backgroundColor: "#2e7d32",
+  },
+  modeTabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2e7d32",
+    marginLeft: 6,
+  },
+  modeTabTextActive: {
+    color: "#fff",
+  },
+
+  /* Header controls */
   headerLeft: {
     position: "absolute",
     left: 16,
@@ -841,16 +1155,9 @@ const styles = StyleSheet.create({
     right: 16,
     padding: 4,
   },
-  headerLogo: {
-    width: 140,
-    height: 140,
-  },
-  lightIcon: {
-    width: 40,
-    height: 40,
-  },
+  lightIcon: { width: 36, height: 36 },
 
-  /*Overlay & scan box*/
+  /* Overlay & scan box */
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
@@ -868,34 +1175,10 @@ const styles = StyleSheet.create({
     height: 40,
     borderColor: "#2e7d32",
   },
-  topLeft: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderTopLeftRadius: 12,
-  },
-  topRight: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderTopRightRadius: 12,
-  },
-  bottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderBottomLeftRadius: 12,
-  },
-  bottomRight: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderBottomRightRadius: 12,
-  },
+  topLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 12 },
+  topRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 12 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 12 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 12 },
   scanHint: {
     marginTop: 20,
     color: "#fff",
@@ -907,7 +1190,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
 
-  /*Result box */
+  /* Result box */
   resultBox: {
     position: "absolute",
     bottom: BOTTOM_BAR_HEIGHT + 20,
@@ -918,222 +1201,49 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
-  resultScroll: {
-    maxHeight: 300,
-  },
-  loadingContainer: {
-    alignItems: "center",
-    paddingVertical: 20,
-  },
-  loadingText: {
-    color: "#fff",
-    marginTop: 12,
-    fontSize: 14,
-  },
-  productImage: {
-    width: "100%",
-    height: 120,
-    marginBottom: 12,
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  productTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  productBrand: {
-    color: "#aaa",
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  quickInfoRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 10,
-  },
-  quickInfoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 16,
-    marginBottom: 4,
-  },
-  quickInfoText: {
-    color: "#ccc",
-    fontSize: 13,
-    marginLeft: 4,
-  },
-  scoresRow: {
-    flexDirection: "row",
-    marginBottom: 10,
-  },
-  scoreItem: {
-    alignItems: "center",
-    marginRight: 16,
-  },
-  scoreLabel: {
-    color: "#888",
-    fontSize: 10,
-    marginBottom: 4,
-  },
-  scoreBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 32,
-    alignItems: "center",
-  },
-  scoreBadgeText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  sectionLabel: {
-    color: "#aaa",
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-  nutritionSection: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  nutritionGrid: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  nutritionItem: {
-    alignItems: "center",
-  },
-  nutritionValue: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  nutritionLabel: {
-    color: "#888",
-    fontSize: 10,
-  },
-  nutritionExtra: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
-  },
-  nutritionExtraText: {
-    color: "#aaa",
-    fontSize: 12,
-    marginRight: 12,
-    marginBottom: 4,
-  },
-  warningsSection: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 10,
-  },
-  warningBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  warningHigh: {
-    backgroundColor: "#e63e11",
-  },
-  warningText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  allergensSection: {
-    marginBottom: 10,
-  },
-  allergensRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  allergenBadge: {
-    backgroundColor: "#ff9800",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  allergenText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  labelsSection: {
-    marginBottom: 8,
-  },
-  labelBadge: {
-    backgroundColor: "rgba(46, 125, 50, 0.3)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  labelText: {
-    color: "#81c784",
-    fontSize: 11,
-    textTransform: "capitalize",
-  },
-  barcodeText: {
-    color: "#aaa",
-    fontSize: 12,
-    marginTop: 8,
-    fontStyle: "italic",
-  },
-  helperText: {
-    color: "#888",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  errorText: {
-    color: "#ff6b6b",
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
-  },
-  scanAgainButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: "#555",
-    marginRight: 5,
-  },
+  resultScroll: { maxHeight: 300 },
+  loadingContainer: { alignItems: "center", paddingVertical: 20 },
+  loadingText: { color: "#fff", marginTop: 12, fontSize: 14 },
+  productImage: { width: "100%", height: 120, marginBottom: 12, borderRadius: 8, backgroundColor: "#fff" },
+  productTitle: { color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 4 },
+  productBrand: { color: "#aaa", fontSize: 14, marginBottom: 8 },
+  quickInfoRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 10 },
+  quickInfoItem: { flexDirection: "row", alignItems: "center", marginRight: 16, marginBottom: 4 },
+  quickInfoText: { color: "#ccc", fontSize: 13, marginLeft: 4 },
+  scoresRow: { flexDirection: "row", marginBottom: 10 },
+  scoreItem: { alignItems: "center", marginRight: 16 },
+  scoreLabel: { color: "#888", fontSize: 10, marginBottom: 4 },
+  scoreBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, minWidth: 32, alignItems: "center" },
+  scoreBadgeText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  sectionLabel: { color: "#aaa", fontSize: 12, fontWeight: "600", marginBottom: 6 },
+  nutritionSection: { backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 8, padding: 10, marginBottom: 10 },
+  nutritionGrid: { flexDirection: "row", justifyContent: "space-around" },
+  nutritionItem: { alignItems: "center" },
+  nutritionValue: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  nutritionLabel: { color: "#888", fontSize: 10 },
+  nutritionExtra: { flexDirection: "row", flexWrap: "wrap", marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)" },
+  nutritionExtraText: { color: "#aaa", fontSize: 12, marginRight: 12, marginBottom: 4 },
+  warningsSection: { flexDirection: "row", flexWrap: "wrap", marginBottom: 10 },
+  warningBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginRight: 6, marginBottom: 4 },
+  warningHigh: { backgroundColor: "#e63e11" },
+  warningText: { color: "#fff", fontSize: 11, fontWeight: "600" },
+  allergensSection: { marginBottom: 10 },
+  allergensRow: { flexDirection: "row", flexWrap: "wrap" },
+  allergenBadge: { backgroundColor: "#ff9800", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginRight: 6, marginBottom: 4 },
+  allergenText: { color: "#fff", fontSize: 11, fontWeight: "600", textTransform: "capitalize" },
+  labelsSection: { marginBottom: 8 },
+  labelBadge: { backgroundColor: "rgba(46, 125, 50, 0.3)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginRight: 6 },
+  labelText: { color: "#81c784", fontSize: 11, textTransform: "capitalize" },
+  barcodeText: { color: "#aaa", fontSize: 12, marginTop: 8, fontStyle: "italic" },
+  helperText: { color: "#888", fontSize: 12, marginTop: 4 },
+  errorText: { color: "#ff6b6b", fontSize: 14, marginBottom: 8 },
+  buttonRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
+  scanAgainButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, backgroundColor: "#555", marginRight: 5 },
   scanAgainText: { color: "#fff", fontWeight: "600" },
-  addToPantryButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: "#2e7d32",
-    marginLeft: 5,
-  },
+  addToPantryButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, backgroundColor: "#2e7d32", marginLeft: 5 },
   addToPantryText: { color: "#fff", fontWeight: "600" },
 
-  /*Full-width bottom Back bar*/
+  /* Bottom bar */
   bottomBar: {
     position: "absolute",
     left: 0,
@@ -1146,96 +1256,169 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  bottomLabel: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2e7d32",
-  },
+  bottomLabel: { fontSize: 18, fontWeight: "700", color: "#2e7d32" },
 
-  /* Permission screens*/
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#000",
-  },
+  /* Permission screens */
+  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24, backgroundColor: "#000" },
   infoText: { color: "#fff", textAlign: "center", marginTop: 12 },
-  backButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#2e7d32",
-  },
+  backButton: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: "#2e7d32" },
   backText: { color: "#fff", fontWeight: "600" },
 
   /* Modal styles */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e3ece5",
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#e3ece5" },
   modalTitle: { fontSize: 18, fontWeight: "700", color: "#333" },
   modalForm: { padding: 16 },
-
   label: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 6, marginTop: 12 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#e3ece5",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
-  },
+  input: { borderWidth: 1, borderColor: "#e3ece5", borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: "#fff" },
   row: { flexDirection: "row" },
   halfInput: { flex: 1, marginRight: 6 },
-
   chipScroll: { marginVertical: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: "#f0f0f0",
-    marginRight: 8,
-  },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: "#f0f0f0", marginRight: 8 },
   chipActive: { backgroundColor: "#2e7d32" },
   chipText: { fontSize: 13, color: "#666" },
   chipTextActive: { color: "#fff" },
-
   locationRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
-  locationChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#f0f0f0",
-    marginRight: 8,
-    marginBottom: 8,
-  },
+  locationChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: "#f0f0f0", marginRight: 8, marginBottom: 8 },
   locationChipActive: { backgroundColor: "#2e7d32" },
   locationChipText: { fontSize: 14, color: "#666" },
   locationChipTextActive: { color: "#fff" },
-
-  saveButton: {
-    backgroundColor: "#2e7d32",
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
+  saveButton: { backgroundColor: "#2e7d32", margin: 16, padding: 16, borderRadius: 12, alignItems: "center" },
   saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  /* Receipt mode styles */
+  receiptContainer: {
+    flex: 1,
+    backgroundColor: "#f6fbf7",
+    paddingTop: 60,
+  },
+  receiptUploadArea: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  receiptTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#333",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  receiptSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  receiptActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2e7d32",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 12,
+    width: "100%",
+  },
+  receiptActionText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  receiptProgress: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e3ece5",
+  },
+  receiptProgressText: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 8,
+  },
+  progressBarBg: {
+    flexDirection: "row",
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#e3ece5",
+    overflow: "hidden",
+  },
+  progressBarFill: { backgroundColor: "#2e7d32" },
+  progressBarSkipped: { backgroundColor: "#bbb" },
+  progressBarPending: { backgroundColor: "#e3ece5" },
+  receiptList: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  receiptItemCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#e3ece5",
+  },
+  receiptItemAdded: {
+    backgroundColor: "#e8f5e9",
+    borderColor: "#a5d6a7",
+  },
+  receiptItemSkipped: {
+    backgroundColor: "#f5f5f5",
+    borderColor: "#ddd",
+    opacity: 0.7,
+  },
+  receiptItemHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  receiptItemName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  receiptItemMeta: {
+    fontSize: 12,
+    color: "#888",
+    lineHeight: 18,
+  },
+  receiptItemActions: {
+    flexDirection: "row",
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    paddingTop: 10,
+  },
+  receiptItemBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#f6fbf7",
+    marginRight: 8,
+  },
+  receiptItemBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2e7d32",
+    marginLeft: 4,
+  },
+  receiptBottomActions: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#e3ece5",
+  },
 });

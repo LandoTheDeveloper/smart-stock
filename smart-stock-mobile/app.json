@@ -4,7 +4,7 @@
     "slug": "smart-stock-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/SmartStockLogo.png",
     "scheme": "smartstockmobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

@@ -7,6 +7,7 @@ import {
   Image,
   TextInput,
   SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -35,79 +36,81 @@ export default function ProfilePage() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Profile</Text>
 
-      {/* Avatar */}
-      <View style={styles.avatarSection}>
-        <Image
-          source={avatarOptions.find((a) => a.name === avatar)?.src}
-          style={styles.mainAvatar}
+        {/* Avatar */}
+        <View style={styles.avatarSection}>
+          <Image
+            source={avatarOptions.find((a) => a.name === avatar)?.src}
+            style={styles.mainAvatar}
+          />
+        </View>
+
+        {/* Display name */}
+        <TextInput
+          style={styles.input}
+          placeholder="Display Name"
+          value={displayName}
+          onChangeText={setDisplayName}
         />
-      </View>
 
-      {/* Display name */}
-      <TextInput
-        style={styles.input}
-        placeholder="Display Name"
-        value={displayName}
-        onChangeText={setDisplayName}
-      />
+        <Text style={styles.subtitle}>Choose Avatar</Text>
 
-      <Text style={styles.subtitle}>Choose Avatar</Text>
+        {/* Avatar selector */}
+        <View style={styles.avatarRow}>
+          {avatarOptions.map((item) => (
+            <TouchableOpacity
+              key={item.name}
+              style={[
+                styles.avatarChoice,
+                avatar === item.name && styles.selectedAvatar,
+              ]}
+              onPress={() => setAvatar(item.name)}
+            >
+              <Image source={item.src} style={styles.choiceImg} />
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* Avatar selector */}
-      <View style={styles.avatarRow}>
-        {avatarOptions.map((item) => (
-          <TouchableOpacity
-            key={item.name}
-            style={[
-              styles.avatarChoice,
-              avatar === item.name && styles.selectedAvatar,
-            ]}
-            onPress={() => setAvatar(item.name)}
-          >
-            <Image source={item.src} style={styles.choiceImg} />
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* Household Button */}
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => router.push("/main/household")}
+        >
+          <Ionicons name="people-outline" size={20} color="#2e7d32" style={{ marginRight: 8 }} />
+          <Text style={styles.settingsText}>Household</Text>
+        </TouchableOpacity>
 
-      {/* Household Button */}
-      <TouchableOpacity
-        style={styles.settingsButton}
-        onPress={() => router.push("/main/household")}
-      >
-        <Ionicons name="people-outline" size={20} color="#2e7d32" style={{ marginRight: 8 }} />
-        <Text style={styles.settingsText}>Household</Text>
-      </TouchableOpacity>
+        {/* Recipe Preferences Button */}
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => router.push("/main/settings")}
+        >
+          <Ionicons name="settings-outline" size={20} color="#2e7d32" style={{ marginRight: 8 }} />
+          <Text style={styles.settingsText}>Recipe Preferences & Allergies</Text>
+        </TouchableOpacity>
 
-      {/* Recipe Preferences Button */}
-      <TouchableOpacity
-        style={styles.settingsButton}
-        onPress={() => router.push("/main/settings")}
-      >
-        <Ionicons name="settings-outline" size={20} color="#2e7d32" style={{ marginRight: 8 }} />
-        <Text style={styles.settingsText}>Recipe Preferences & Allergies</Text>
-      </TouchableOpacity>
+        {/* Sign Out Button */}
+        <TouchableOpacity
+          style={styles.signOutButton}
+          onPress={() => {
+            logout();
+            router.replace("/auth/login");
+          }}
+        >
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
 
-      {/* Sign Out Button */}
-      <TouchableOpacity
-        style={styles.signOutButton}
-        onPress={() => {
-          logout();
-          router.replace("/auth/login");
-        }}
-      >
-        <Text style={styles.signOutText}>Sign Out</Text>
-      </TouchableOpacity>
-
-      {/* Back button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.replace("/main/dashboard")}
-      >
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+        {/* Back button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.replace("/main/dashboard")}
+        >
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -115,10 +118,15 @@ export default function ProfilePage() {
 const AVATAR_SIZE = 110;
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#f6fbf7",
-    padding: 20,
+  },
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
 
   title: {

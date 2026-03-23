@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { api } from '../lib/api';
+import { computeWeeklyMacros, computeFoodGroupDistribution, FOOD_GROUP_ORDER } from '../lib/nutritionUtils';
 import axios from 'axios';
 
 type Ingredient = {
@@ -85,6 +86,11 @@ export default function MealPlanner() {
   const [ingredients, setIngredients] = useState<IngredientComparison[]>([]);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
 
+  // Nutrition summary
+  const [showNutritionSummary, setShowNutritionSummary] = useState(false);
+  const [calorieTarget, setCalorieTarget] = useState(0);
+  const [proteinTarget, setProteinTarget] = useState(0);
+
   const weekDays = useMemo(() => {
     const days = [];
     for (let i = 0; i < 7; i++) {
@@ -107,7 +113,18 @@ export default function MealPlanner() {
 
   useEffect(() => {
     fetchSavedRecipes();
+    api.get<{ success: boolean; data: { calorieTarget?: number; proteinTarget?: number } }>('/api/user/preferences')
+      .then(res => {
+        if (res.data.success) {
+          setCalorieTarget(res.data.data.calorieTarget || 0);
+          setProteinTarget(res.data.data.proteinTarget || 0);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const weeklyMacros = useMemo(() => computeWeeklyMacros(mealPlans), [mealPlans]);
+  const foodGroupDist = useMemo(() => computeFoodGroupDistribution(mealPlans), [mealPlans]);
 
   const fetchSavedRecipes = async () => {
     try {
@@ -468,6 +485,103 @@ export default function MealPlanner() {
         .ingredient-status.need {
           background: #ef4444;
         }
+        .nutrition-summary {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 1rem;
+          margin-bottom: 1rem;
+        }
+        .nutrition-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+        }
+        @media (max-width: 768px) {
+          .nutrition-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .macro-cards {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.75rem;
+        }
+        .macro-card {
+          background: var(--bg-primary);
+          border-radius: 8px;
+          padding: 0.75rem;
+        }
+        .macro-label {
+          font-size: 0.8rem;
+          color: var(--muted);
+          margin-bottom: 0.25rem;
+        }
+        .macro-value {
+          font-size: 1.2rem;
+          font-weight: 700;
+        }
+        .macro-target {
+          font-size: 0.8rem;
+          color: var(--muted);
+          font-weight: 400;
+        }
+        .macro-bar {
+          height: 6px;
+          background: var(--border);
+          border-radius: 3px;
+          margin-top: 0.5rem;
+          overflow: hidden;
+        }
+        .macro-bar-fill {
+          height: 100%;
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+        .food-group-row {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 0.5rem;
+        }
+        .food-group-label {
+          min-width: 110px;
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .food-group-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .food-group-bar {
+          flex: 1;
+          height: 12px;
+          background: var(--border);
+          border-radius: 6px;
+          overflow: hidden;
+        }
+        .food-group-bar-fill {
+          height: 100%;
+          border-radius: 6px;
+          transition: width 0.3s ease;
+        }
+        .food-group-pct {
+          min-width: 50px;
+          font-size: 0.8rem;
+          text-align: right;
+          color: var(--muted);
+        }
+        .week-totals {
+          font-size: 0.8rem;
+          color: var(--muted);
+          margin-top: 0.75rem;
+          padding-top: 0.5rem;
+          border-top: 1px solid var(--border);
+        }
       `}</style>
 
       <section className="card table-card">
@@ -487,8 +601,79 @@ export default function MealPlanner() {
             <button className="btn-soft" onClick={handleViewIngredients}>
               View Ingredients
             </button>
+            <button className="btn-soft" onClick={() => setShowNutritionSummary(v => !v)}>
+              {showNutritionSummary ? 'Hide Nutrition' : 'Nutrition'}
+            </button>
           </div>
         </div>
+
+        {showNutritionSummary && mealPlans.length > 0 && (
+          <div className="nutrition-summary">
+            <div className="nutrition-grid">
+              <div>
+                <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 }}>Weekly Macros (Daily Avg)</h3>
+                <div className="macro-cards">
+                  <div className="macro-card">
+                    <div className="macro-label">Calories</div>
+                    <div className="macro-value">
+                      {weeklyMacros.dailyAverageKcal}
+                      {calorieTarget > 0 && <span className="macro-target"> / {calorieTarget}</span>}
+                    </div>
+                    {calorieTarget > 0 && (
+                      <div className="macro-bar">
+                        <div className="macro-bar-fill" style={{
+                          width: `${Math.min((weeklyMacros.dailyAverageKcal / calorieTarget) * 100, 100)}%`,
+                          background: weeklyMacros.dailyAverageKcal > calorieTarget * 1.1 ? '#ef4444' : '#22c55e'
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="macro-card">
+                    <div className="macro-label">Protein</div>
+                    <div className="macro-value">
+                      {weeklyMacros.dailyAverageProtein}g
+                      {proteinTarget > 0 && <span className="macro-target"> / {proteinTarget}g</span>}
+                    </div>
+                    {proteinTarget > 0 && (
+                      <div className="macro-bar">
+                        <div className="macro-bar-fill" style={{
+                          width: `${Math.min((weeklyMacros.dailyAverageProtein / proteinTarget) * 100, 100)}%`,
+                          background: '#8B5CF6'
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="macro-card">
+                    <div className="macro-label">Carbs</div>
+                    <div className="macro-value">{weeklyMacros.dailyAverageCarbs}g</div>
+                  </div>
+                  <div className="macro-card">
+                    <div className="macro-label">Fat</div>
+                    <div className="macro-value">{weeklyMacros.dailyAverageFat}g</div>
+                  </div>
+                </div>
+                <div className="week-totals">
+                  Week total: {weeklyMacros.totalKcal.toLocaleString()} kcal &middot; {weeklyMacros.totalProtein}g protein &middot; {weeklyMacros.totalCarbs}g carbs &middot; {weeklyMacros.totalFat}g fat
+                </div>
+              </div>
+              <div>
+                <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 }}>Food Groups</h3>
+                {[...foodGroupDist].reverse().map(fg => (
+                  <div className="food-group-row" key={fg.group}>
+                    <div className="food-group-label">
+                      <div className="food-group-dot" style={{ background: fg.color }} />
+                      {fg.group}
+                    </div>
+                    <div className="food-group-bar">
+                      <div className="food-group-bar-fill" style={{ width: `${fg.percentage}%`, background: fg.color }} />
+                    </div>
+                    <div className="food-group-pct">{fg.percentage}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="meal-calendar">
           {/* Header row */}

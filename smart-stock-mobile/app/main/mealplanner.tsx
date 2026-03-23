@@ -16,6 +16,11 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
 import axios from "axios";
+import {
+  computeWeeklyMacros,
+  computeFoodGroupDistribution,
+  type MealPlanInput,
+} from "../../lib/nutritionUtils";
 
 interface Ingredient {
   name: string;
@@ -107,6 +112,11 @@ export default function MealPlannerScreen() {
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [showIngredientsModal, setShowIngredientsModal] = useState(false);
 
+  // Nutrition summary
+  const [showNutrition, setShowNutrition] = useState(false);
+  const [calorieTarget, setCalorieTarget] = useState(0);
+  const [proteinTarget, setProteinTarget] = useState(0);
+
   const weekDays = useMemo(() => {
     const days = [];
     for (let i = 0; i < 7; i++) {
@@ -172,7 +182,42 @@ export default function MealPlannerScreen() {
   useEffect(() => {
     fetchSavedRecipes();
     fetchPantryItems();
+    // Fetch user nutrition targets
+    api.get("/api/user/preferences").then((res) => {
+      if (res.data) {
+        setCalorieTarget(res.data.calorieTarget || 0);
+        setProteinTarget(res.data.proteinTarget || 0);
+      }
+    }).catch(() => {});
   }, [fetchSavedRecipes, fetchPantryItems]);
+
+  const weeklyMacros = useMemo(() => {
+    const inputs: MealPlanInput[] = mealPlans.map((m) => ({
+      date: m.date,
+      recipe: {
+        kcal: m.recipe.kcal,
+        protein: m.recipe.protein,
+        carbs: m.recipe.carbs,
+        fat: m.recipe.fat,
+        ingredients: m.recipe.ingredients,
+      },
+    }));
+    return computeWeeklyMacros(inputs);
+  }, [mealPlans]);
+
+  const foodGroupDist = useMemo(() => {
+    const inputs: MealPlanInput[] = mealPlans.map((m) => ({
+      date: m.date,
+      recipe: {
+        kcal: m.recipe.kcal,
+        protein: m.recipe.protein,
+        carbs: m.recipe.carbs,
+        fat: m.recipe.fat,
+        ingredients: m.recipe.ingredients,
+      },
+    }));
+    return computeFoodGroupDistribution(inputs);
+  }, [mealPlans]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -485,6 +530,109 @@ export default function MealPlannerScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color="#888" />
         </TouchableOpacity>
+      )}
+
+      {/* Nutrition Summary Banner */}
+      {mealPlans.length > 0 && !loading && (
+        <TouchableOpacity
+          style={styles.nutritionBanner}
+          onPress={() => setShowNutrition(!showNutrition)}
+        >
+          <View style={styles.nutritionBannerContent}>
+            <Ionicons name="nutrition-outline" size={18} color="#8B5CF6" />
+            <Text style={styles.nutritionBannerText}>
+              ~{weeklyMacros.dailyAverageKcal.toLocaleString()} kcal/day | {weeklyMacros.dailyAverageProtein}g protein
+            </Text>
+          </View>
+          <Ionicons
+            name={showNutrition ? "chevron-up" : "chevron-down"}
+            size={18}
+            color="#888"
+          />
+        </TouchableOpacity>
+      )}
+
+      {/* Expanded Nutrition Panel */}
+      {showNutrition && mealPlans.length > 0 && (
+        <View style={styles.nutritionPanel}>
+          {/* Macro Cards */}
+          <View style={styles.macroRow}>
+            <View style={[styles.macroCard, { borderLeftColor: "#F59E0B" }]}>
+              <Text style={styles.macroLabel}>Calories</Text>
+              <Text style={styles.macroValue}>{weeklyMacros.dailyAverageKcal.toLocaleString()}</Text>
+              <Text style={styles.macroUnit}>kcal/day</Text>
+              {calorieTarget > 0 && (
+                <View style={styles.macroBarBg}>
+                  <View
+                    style={[
+                      styles.macroBarFill,
+                      {
+                        width: `${Math.min((weeklyMacros.dailyAverageKcal / calorieTarget) * 100, 100)}%`,
+                        backgroundColor: weeklyMacros.dailyAverageKcal > calorieTarget * 1.1 ? "#EF4444" : "#22C55E",
+                      },
+                    ]}
+                  />
+                </View>
+              )}
+            </View>
+            <View style={[styles.macroCard, { borderLeftColor: "#8B5CF6" }]}>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Text style={styles.macroValue}>{weeklyMacros.dailyAverageProtein}g</Text>
+              <Text style={styles.macroUnit}>per day</Text>
+              {proteinTarget > 0 && (
+                <View style={styles.macroBarBg}>
+                  <View
+                    style={[
+                      styles.macroBarFill,
+                      {
+                        width: `${Math.min((weeklyMacros.dailyAverageProtein / proteinTarget) * 100, 100)}%`,
+                        backgroundColor: "#8B5CF6",
+                      },
+                    ]}
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+          <View style={styles.macroRow}>
+            <View style={[styles.macroCard, { borderLeftColor: "#3B82F6" }]}>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Text style={styles.macroValue}>{weeklyMacros.dailyAverageCarbs}g</Text>
+              <Text style={styles.macroUnit}>per day</Text>
+            </View>
+            <View style={[styles.macroCard, { borderLeftColor: "#F97316" }]}>
+              <Text style={styles.macroLabel}>Fat</Text>
+              <Text style={styles.macroValue}>{weeklyMacros.dailyAverageFat}g</Text>
+              <Text style={styles.macroUnit}>per day</Text>
+            </View>
+          </View>
+
+          {/* Week Totals */}
+          <Text style={styles.weekTotals}>
+            Week total: {weeklyMacros.totalKcal.toLocaleString()} kcal | {weeklyMacros.totalProtein}g P | {weeklyMacros.totalCarbs}g C | {weeklyMacros.totalFat}g F
+          </Text>
+
+          {/* Food Group Distribution */}
+          <Text style={styles.foodGroupTitle}>Food Groups</Text>
+          {[...foodGroupDist].reverse().map((item) => (
+            <View key={item.group} style={styles.foodGroupRow}>
+              <View style={[styles.foodGroupDot, { backgroundColor: item.color }]} />
+              <Text style={styles.foodGroupLabel}>{item.group}</Text>
+              <View style={styles.foodGroupBarBg}>
+                <View
+                  style={[
+                    styles.foodGroupBarFill,
+                    {
+                      width: `${item.percentage}%`,
+                      backgroundColor: item.color,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.foodGroupPct}>{item.percentage}%</Text>
+            </View>
+          ))}
+        </View>
       )}
 
       <ScrollView
@@ -881,6 +1029,121 @@ const styles = StyleSheet.create({
     height: 20,
     backgroundColor: "#e3ece5",
     marginHorizontal: 16,
+  },
+
+  // Nutrition summary styles
+  nutritionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e3ece5",
+  },
+  nutritionBannerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  nutritionBannerText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    marginLeft: 8,
+  },
+  nutritionPanel: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e3ece5",
+  },
+  macroRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 10,
+  },
+  macroCard: {
+    flex: 1,
+    backgroundColor: "#f8faf8",
+    borderRadius: 10,
+    padding: 12,
+    borderLeftWidth: 3,
+  },
+  macroLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#888",
+    marginBottom: 2,
+  },
+  macroValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#333",
+  },
+  macroUnit: {
+    fontSize: 11,
+    color: "#999",
+    marginBottom: 6,
+  },
+  macroBarBg: {
+    height: 4,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  macroBarFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  weekTotals: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  foodGroupTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 10,
+  },
+  foodGroupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  foodGroupDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  foodGroupLabel: {
+    fontSize: 13,
+    color: "#555",
+    width: 100,
+  },
+  foodGroupBarBg: {
+    flex: 1,
+    height: 8,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 4,
+    overflow: "hidden",
+    marginRight: 8,
+  },
+  foodGroupBarFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  foodGroupPct: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+    width: 35,
+    textAlign: "right",
   },
 
   content: {
