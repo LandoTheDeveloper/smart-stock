@@ -20,7 +20,11 @@ interface ParsedReceiptItem {
   name: string;
   quantity: number;
   unit?: string;
+  category?: string;
+  storageLocation?: string;
   expected_expiration?: string;
+  _added?: boolean;   // track which items have been added
+  _skipped?: boolean;  // track which items have been skipped
 }
 
 const PRODUCT_SHELF_LIVES: Record<string, number> = {
@@ -174,7 +178,6 @@ export default function Scan() {
 
   const [receiptItems, setReceiptItems] = useState<ParsedReceiptItem[]>([]);
   const [currentReceiptIndex, setCurrentReceiptIndex] = useState(0);
-  const [receiptEditing, setReceiptEditing] = useState(false);
   const [receiptForm, setReceiptForm] = useState({
     name: '',
     quantity: '1',
@@ -200,10 +203,10 @@ export default function Scan() {
       quantity: String(item.quantity || 1),
       unit: item.unit || 'count',
       expirationDate: item.expected_expiration || '',
-      category: '',
-      storageLocation: 'Pantry',
+      category: (item.category || '') as Category | '',
+      storageLocation: (item.storageLocation || 'Pantry') as StorageLocation,
     });
-    setReceiptEditing(false);
+
   }, []);
 
   const fetchProduct = useCallback(async (barcode: string) => {
@@ -398,6 +401,19 @@ export default function Scan() {
     };
   }, [mode, scannedBarcode, successMsg, receiptItems.length, startScanner, startReceiptCamera, stopScanner]);
 
+  // Warn before navigating away with unsaved receipt items
+  useEffect(() => {
+    const hasUnsaved = receiptItems.some(item => !item._added && !item._skipped);
+    if (!hasUnsaved) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [receiptItems]);
+
   const handleManualLookup = () => {
     const barcode = manualBarcode.trim();
     if (!barcode) return;
@@ -413,7 +429,8 @@ export default function Scan() {
     setReceiptUploading(false);
     setReceiptItems([]);
     setCurrentReceiptIndex(0);
-    setReceiptEditing(false);
+    setReceiptView('list');
+    setBulkAdding(false);
     setReceiptForm({
       name: '',
       quantity: '1',
@@ -480,20 +497,11 @@ export default function Scan() {
     }
   };
 
-  const moveToNextReceiptItem = useCallback(() => {
-    const nextIndex = currentReceiptIndex + 1;
+  const [receiptView, setReceiptView] = useState<'list' | 'edit'>('list');
+  const [bulkAdding, setBulkAdding] = useState(false);
 
-    if (nextIndex >= receiptItems.length) {
-      setReceiptItems([]);
-      setCurrentReceiptIndex(0);
-      setReceiptEditing(false);
-      setSuccessMsg('All receipt items added to pantry!');
-      return;
-    }
-
-    setCurrentReceiptIndex(nextIndex);
-    populateReceiptForm(receiptItems[nextIndex]);
-  }, [currentReceiptIndex, receiptItems, populateReceiptForm]);
+  const pendingReceiptItems = receiptItems.filter(i => !i._added && !i._skipped);
+  const addedCount = receiptItems.filter(i => i._added).length;
 
   const handleAddReceiptItem = async () => {
     if (!receiptForm.name.trim()) return;
@@ -509,7 +517,12 @@ export default function Scan() {
         storageLocation: receiptForm.storageLocation || 'Pantry',
       });
 
-      moveToNextReceiptItem();
+      // Mark as added
+      setReceiptItems(prev => prev.map((item, i) =>
+        i === currentReceiptIndex ? { ...item, _added: true } : item
+      ));
+      setReceiptView('list');
+  
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to add item');
     } finally {
@@ -517,8 +530,76 @@ export default function Scan() {
     }
   };
 
-  const handleSkipReceiptItem = () => {
-    moveToNextReceiptItem();
+  const handleSkipReceiptItem = (index: number) => {
+    setReceiptItems(prev => prev.map((item, i) =>
+      i === index ? { ...item, _skipped: true } : item
+    ));
+  };
+
+  const handleUnskipReceiptItem = (index: number) => {
+    setReceiptItems(prev => prev.map((item, i) =>
+      i === index ? { ...item, _skipped: false } : item
+    ));
+  };
+
+  const handleEditReceiptItem = (index: number) => {
+    setCurrentReceiptIndex(index);
+    populateReceiptForm(receiptItems[index]);
+    setReceiptView('edit');
+  };
+
+  const handleRemoveReceiptItem = (index: number) => {
+    setReceiptItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddAllReceipt = async () => {
+    const toAdd = receiptItems.filter(i => !i._added && !i._skipped);
+    if (toAdd.length === 0) return;
+
+    setBulkAdding(true);
+    let addedSoFar = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < receiptItems.length; i++) {
+      const item = receiptItems[i];
+      if (item._added || item._skipped) continue;
+
+      try {
+        await api.post('/api/pantry', {
+          name: item.name.trim(),
+          quantity: item.quantity || 1,
+          unit: item.unit || 'count',
+          expirationDate: item.expected_expiration || undefined,
+          category: item.category || undefined,
+          storageLocation: item.storageLocation || 'Pantry',
+        });
+        addedSoFar++;
+        setReceiptItems(prev => prev.map((it, idx) =>
+          idx === i ? { ...it, _added: true } : it
+        ));
+      } catch (err: any) {
+        errors.push(item.name);
+      }
+    }
+
+    setBulkAdding(false);
+
+    if (errors.length > 0) {
+      alert(`Added ${addedSoFar} items. Failed: ${errors.join(', ')}`);
+    } else {
+      setSuccessMsg(`${addedSoFar} item${addedSoFar !== 1 ? 's' : ''} added to pantry!`);
+    }
+  };
+
+  const handleFinishReceipt = () => {
+    const count = addedCount;
+    setReceiptItems([]);
+    setCurrentReceiptIndex(0);
+
+    setReceiptView('list');
+    if (count > 0) {
+      setSuccessMsg(`${count} item${count !== 1 ? 's' : ''} added to pantry!`);
+    }
   };
 
   const uploadReceiptFile = useCallback(async (file: File) => {
@@ -606,8 +687,6 @@ export default function Scan() {
       default: return '#999';
     }
   };
-
-  const currentReceiptItem = receiptItems[currentReceiptIndex];
 
   return (
     <>
@@ -821,154 +900,214 @@ export default function Scan() {
           </div>
         )}
 
-        {!successMsg && mode === 'receipt' && currentReceiptItem && (
+        {!successMsg && mode === 'receipt' && receiptItems.length > 0 && receiptView === 'list' && (
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
-              <div style={{ fontWeight: 700 }}>Review Receipt Item</div>
-              <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-                Item {currentReceiptIndex + 1} of {receiptItems.length}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>Receipt Items</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                  {addedCount} added, {receiptItems.filter(i => i._skipped).length} skipped, {pendingReceiptItems.length} remaining
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {pendingReceiptItems.length > 0 && (
+                  <button
+                    className="btn-primary"
+                    onClick={handleAddAllReceipt}
+                    disabled={bulkAdding}
+                  >
+                    {bulkAdding ? 'Adding...' : `Add All (${pendingReceiptItems.length})`}
+                  </button>
+                )}
+                <button className="btn-outline" onClick={handleFinishReceipt}>
+                  {addedCount > 0 ? 'Done' : 'Cancel'}
+                </button>
               </div>
             </div>
 
-            {!receiptEditing ? (
-              <>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                  {receiptForm.name || 'Unnamed item'}
-                </div>
-
-                <div className="receipt-summary-grid">
-                  <div className="receipt-summary-item">
-                    <div className="receipt-summary-label">Quantity</div>
-                    <div className="receipt-summary-value">{receiptForm.quantity || '—'}</div>
-                  </div>
-
-                  <div className="receipt-summary-item">
-                    <div className="receipt-summary-label">Unit</div>
-                    <div className="receipt-summary-value">{receiptForm.unit || '—'}</div>
-                  </div>
-
-                  <div className="receipt-summary-item">
-                    <div className="receipt-summary-label">Expiration Date</div>
-                    <div className="receipt-summary-value">{receiptForm.expirationDate || '—'}</div>
-                  </div>
-
-                  <div className="receipt-summary-item">
-                    <div className="receipt-summary-label">Category</div>
-                    <div className="receipt-summary-value">{receiptForm.category || '—'}</div>
-                  </div>
-
-                  <div className="receipt-summary-item">
-                    <div className="receipt-summary-label">Storage Location</div>
-                    <div className="receipt-summary-value">{receiptForm.storageLocation || '—'}</div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn-outline" onClick={handleSkipReceiptItem}>
-                    Skip
-                  </button>
-                  <button type="button" className="btn-outline" onClick={() => setReceiptEditing(true)}>
-                    Edit
-                  </button>
-                  <button type="button" className="btn-primary" onClick={handleAddReceiptItem} disabled={saving || !receiptForm.name.trim()}>
-                    {saving ? 'Saving...' : 'Add to Pantry'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>Edit Item Details</div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Item Name *</label>
-                    <input
-                      className="input"
-                      required
-                      value={receiptForm.name}
-                      onChange={e => setReceiptForm(p => ({ ...p, name: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="form-grid">
-                    <div>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Quantity</label>
-                      <input
-                        className="input"
-                        type="number"
-                        min="1"
-                        value={receiptForm.quantity}
-                        onChange={e => setReceiptForm(p => ({ ...p, quantity: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Unit</label>
-                      <select
-                        className="input"
-                        value={receiptForm.unit}
-                        onChange={e => setReceiptForm(p => ({ ...p, unit: e.target.value }))}
-                      >
-                        {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-grid">
-                    <div>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Category</label>
-                      <select
-                        className="input"
-                        value={receiptForm.category}
-                        onChange={e => {
-                          const cat = e.target.value as Category;
-                          setReceiptForm(p => ({
-                            ...p,
-                            category: cat,
-                            unit: cat ? getDefaultUnit(cat, defaultUnits) : p.unit,
-                          }));
-                        }}
-                      >
-                        <option value="">Select...</option>
-                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Storage Location</label>
-                      <select
-                        className="input"
-                        value={receiptForm.storageLocation}
-                        onChange={e => setReceiptForm(p => ({ ...p, storageLocation: e.target.value as StorageLocation }))}
-                      >
-                        {STORAGE_LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Expiration Date</label>
-                    <input
-                      className="input"
-                      type="date"
-                      value={receiptForm.expirationDate}
-                      onChange={e => setReceiptForm(p => ({ ...p, expirationDate: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn-outline" onClick={handleSkipReceiptItem}>
-                    Skip
-                  </button>
-                  <button type="button" className="btn-outline" onClick={() => setReceiptEditing(false)}>
-                    Cancel Edit
-                  </button>
-                  <button type="button" className="btn-primary" onClick={handleAddReceiptItem} disabled={saving || !receiptForm.name.trim()}>
-                    {saving ? 'Saving...' : 'Add to Pantry'}
-                  </button>
-                </div>
-              </>
+            {/* Progress bar */}
+            {receiptItems.length > 0 && (
+              <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, marginBottom: '1rem', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${((addedCount) / receiptItems.length) * 100}%`,
+                  background: 'var(--primary)',
+                  borderRadius: 2,
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
             )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {receiptItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.75rem',
+                    background: item._added ? 'var(--primary-10, #e8f5e9)' : item._skipped ? 'var(--bg)' : 'var(--bg)',
+                    border: `1px solid ${item._added ? 'var(--primary)' : 'var(--border)'}`,
+                    borderRadius: '8px',
+                    opacity: item._skipped ? 0.5 : 1,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {item._added && <span style={{ color: 'var(--primary)', fontSize: '0.85rem' }}>&#10003;</span>}
+                      {item.name}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                      <span>{item.quantity} {item.unit || 'count'}</span>
+                      {item.category && <span>&#183; {item.category}</span>}
+                      {item.storageLocation && <span>&#183; {item.storageLocation}</span>}
+                      {item.expected_expiration && <span>&#183; exp {item.expected_expiration}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                    {item._added ? (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500 }}>Added</span>
+                    ) : item._skipped ? (
+                      <button className="btn-outline btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => handleUnskipReceiptItem(idx)}>
+                        Undo
+                      </button>
+                    ) : (
+                      <>
+                        <button className="btn-outline btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => handleEditReceiptItem(idx)}>
+                          Edit
+                        </button>
+                        <button className="btn-outline btn-sm" style={{ fontSize: '0.75rem', color: '#888' }} onClick={() => handleSkipReceiptItem(idx)}>
+                          Skip
+                        </button>
+                        <button className="btn-outline btn-sm" style={{ fontSize: '0.75rem', color: '#dc2626' }} onClick={() => handleRemoveReceiptItem(idx)}>
+                          &#10005;
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!successMsg && mode === 'receipt' && receiptItems.length > 0 && receiptView === 'edit' && (
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ fontWeight: 700 }}>Edit: {receiptItems[currentReceiptIndex]?.name}</div>
+              <button className="btn-outline btn-sm" onClick={() => { setReceiptView('list'); }}>
+                Back to List
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Item Name *</label>
+                <input
+                  className="input"
+                  required
+                  value={receiptForm.name}
+                  onChange={e => setReceiptForm(p => ({ ...p, name: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-grid">
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Quantity</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    value={receiptForm.quantity}
+                    onChange={e => setReceiptForm(p => ({ ...p, quantity: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Unit</label>
+                  <select
+                    className="input"
+                    value={receiptForm.unit}
+                    onChange={e => setReceiptForm(p => ({ ...p, unit: e.target.value }))}
+                  >
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Category</label>
+                  <select
+                    className="input"
+                    value={receiptForm.category}
+                    onChange={e => {
+                      const cat = e.target.value as Category;
+                      setReceiptForm(p => ({
+                        ...p,
+                        category: cat,
+                        unit: cat ? getDefaultUnit(cat, defaultUnits) : p.unit,
+                      }));
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Storage Location</label>
+                  <select
+                    className="input"
+                    value={receiptForm.storageLocation}
+                    onChange={e => setReceiptForm(p => ({ ...p, storageLocation: e.target.value as StorageLocation }))}
+                  >
+                    {STORAGE_LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Expiration Date</label>
+                <input
+                  className="input"
+                  type="date"
+                  value={receiptForm.expirationDate}
+                  onChange={e => setReceiptForm(p => ({ ...p, expirationDate: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-outline" onClick={() => { setReceiptView('list'); }}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-soft"
+                onClick={() => {
+                  // Save edits back to the receiptItems array (without adding to pantry yet)
+                  setReceiptItems(prev => prev.map((item, i) =>
+                    i === currentReceiptIndex ? {
+                      ...item,
+                      name: receiptForm.name,
+                      quantity: parseInt(receiptForm.quantity) || 1,
+                      unit: receiptForm.unit,
+                      category: receiptForm.category,
+                      storageLocation: receiptForm.storageLocation,
+                      expected_expiration: receiptForm.expirationDate,
+                    } : item
+                  ));
+                  setReceiptView('list');
+              
+                }}
+              >
+                Save Changes
+              </button>
+              <button type="button" className="btn-primary" onClick={handleAddReceiptItem} disabled={saving || !receiptForm.name.trim()}>
+                {saving ? 'Saving...' : 'Save & Add to Pantry'}
+              </button>
+            </div>
           </div>
         )}
 

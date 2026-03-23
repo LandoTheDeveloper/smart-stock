@@ -3,9 +3,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export interface ParsedGrocery {
   name: string;
   quantity: number;
-  unit: "lbs" | "oz" | "count" | "gallon" | "package";
+  unit: string;
+  category: string;
+  storageLocation: string;
   expected_expiration: string;
 }
+
+const VALID_UNITS = ["count", "g", "kg", "ml", "L", "oz", "lb", "cups", "tbsp", "tsp", "pcs", "pack", "box", "can", "bottle", "bag"];
+const VALID_CATEGORIES = ["Dairy", "Produce", "Meat", "Seafood", "Bakery", "Frozen", "Canned Goods", "Grains & Pasta", "Snacks", "Beverages", "Condiments", "Spices", "Other"];
+const VALID_LOCATIONS = ["Fridge", "Freezer", "Pantry", "Counter"];
 
 function getModel() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -21,16 +27,50 @@ function getModel() {
   });
 }
 
-function normalizeUnit(unit: unknown): ParsedGrocery["unit"] {
+function normalizeUnit(unit: unknown): string {
   const value = String(unit || "").toLowerCase().trim();
 
-  if (["lb", "lbs", "pound", "pounds"].includes(value)) return "lbs";
-  if (["oz", "ounce", "ounces"].includes(value)) return "oz";
-  if (["count", "each", "ct", "pc", "pcs", "piece", "pieces"].includes(value)) return "count";
-  if (["gallon", "gal", "half-gallon", "1/2 gallon"].includes(value)) return "gallon";
-  if (["package", "pack", "pkg", "bag", "box", "bottle", "jar"].includes(value)) return "package";
+  const mapping: Record<string, string> = {
+    lb: "lb", lbs: "lb", pound: "lb", pounds: "lb",
+    oz: "oz", ounce: "oz", ounces: "oz",
+    g: "g", gram: "g", grams: "g",
+    kg: "kg", kilogram: "kg", kilograms: "kg",
+    ml: "ml", milliliter: "ml", milliliters: "ml",
+    l: "L", liter: "L", liters: "L", litre: "L", litres: "L",
+    cup: "cups", cups: "cups",
+    tbsp: "tbsp", tablespoon: "tbsp", tablespoons: "tbsp",
+    tsp: "tsp", teaspoon: "tsp", teaspoons: "tsp",
+    count: "count", each: "count", ct: "count", ea: "count",
+    pc: "pcs", pcs: "pcs", piece: "pcs", pieces: "pcs",
+    pack: "pack", package: "pack", pkg: "pack",
+    box: "box", bag: "bag", can: "can", bottle: "bottle",
+    gallon: "L", gal: "L", "half-gallon": "L",
+    jar: "bottle",
+  };
 
-  return "count";
+  return mapping[value] || "count";
+}
+
+function normalizeCategory(cat: unknown): string {
+  const value = String(cat || "").trim();
+  if (VALID_CATEGORIES.includes(value)) return value;
+
+  const lower = value.toLowerCase();
+  for (const valid of VALID_CATEGORIES) {
+    if (lower === valid.toLowerCase()) return valid;
+  }
+  return "Other";
+}
+
+function normalizeLocation(loc: unknown): string {
+  const value = String(loc || "").trim();
+  if (VALID_LOCATIONS.includes(value)) return value;
+
+  const lower = value.toLowerCase();
+  for (const valid of VALID_LOCATIONS) {
+    if (lower === valid.toLowerCase()) return valid;
+  }
+  return "Pantry";
 }
 
 function normalizeDate(value: unknown): string {
@@ -68,6 +108,8 @@ function normalizeParsedGroceries(value: unknown): ParsedGrocery[] {
         name,
         quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
         unit: normalizeUnit(obj.unit),
+        category: normalizeCategory(obj.category),
+        storageLocation: normalizeLocation(obj.storageLocation),
         expected_expiration: normalizeDate(obj.expected_expiration),
       } satisfies ParsedGrocery;
     })
@@ -95,11 +137,13 @@ No text before or after the JSON.
 Extract only grocery food items from this receipt text.
 Exclude taxes, subtotal, total, discounts, coupons, payment lines, loyalty lines, fees, and alcohol.
 
-Allowed units:
-"lbs", "oz", "count", "gallon", "package"
+Allowed units: ${JSON.stringify(VALID_UNITS)}
+Allowed categories: ${JSON.stringify(VALID_CATEGORIES)}
+Allowed storageLocations: ${JSON.stringify(VALID_LOCATIONS)}
 
 Use today's date: ${today}
-Estimate expiration using typical shelf life.
+Estimate expiration using typical shelf life for each product.
+Pick the most appropriate category and storageLocation for each item.
 If quantity or unit is unclear, make a realistic best guess.
 
 Return this shape:
@@ -108,6 +152,8 @@ Return this shape:
     "name": "Full grocery item name",
     "quantity": 1,
     "unit": "count",
+    "category": "Produce",
+    "storageLocation": "Fridge",
     "expected_expiration": "YYYY-MM-DD"
   }
 ]
