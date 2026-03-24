@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { api } from '../lib/api';
-import { computeWeeklyMacros, computeFoodGroupDistribution, FOOD_GROUP_ORDER } from '../lib/nutritionUtils';
+import { computeWeeklyMacros, computeFoodGroupDistribution } from '../lib/nutritionUtils';
 import axios from 'axios';
 
 type Ingredient = {
