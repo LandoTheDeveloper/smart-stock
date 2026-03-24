@@ -11,6 +11,22 @@
   --radius: 16px;
 }
 
+.tag {
+  color: var(--foreground);
+  background: var(--tag-bg, transparent);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.tag-active {
+  color: var(--tag-active-color, #fff);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
 .auth-wrap {
   min-height: 100vh;
   display: grid;
