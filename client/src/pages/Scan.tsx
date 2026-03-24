@@ -866,24 +866,59 @@ export default function Scan() {
               </div>
             )}
 
-            <div className="receipt-actions">
-              <button
-                className="btn-primary"
-                onClick={handleCaptureReceipt}
-                disabled={!scanning || receiptUploading}
-              >
-                {receiptUploading ? 'Uploading...' : 'Take Picture'}
-              </button>
+            {receiptUploading && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '2rem 1rem',
+                background: 'var(--bg-secondary)',
+                borderRadius: 12,
+                marginBottom: '1rem',
+              }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  border: '3px solid var(--border)',
+                  borderTopColor: 'var(--primary)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                }} />
+                <div style={{ fontWeight: 600, fontSize: '1rem' }}>Processing Receipt...</div>
+                <div style={{ color: 'var(--muted)', fontSize: '0.85rem', textAlign: 'center', lineHeight: 1.5 }}>
+                  Uploading image, reading text, and identifying grocery items.
+                  <br />This may take 15–30 seconds.
+                </div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
 
-              <button
-                type="button"
-                className="btn-outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={receiptUploading}
-              >
-                Upload From Device
-              </button>
-            </div>
+            {!receiptUploading && (
+              <>
+                <div className="receipt-actions">
+                  <button
+                    className="btn-primary"
+                    onClick={handleCaptureReceipt}
+                    disabled={!scanning}
+                  >
+                    Take Picture
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Upload From Device
+                  </button>
+                </div>
+
+                <div className="receipt-help">
+                  Line up the receipt inside the frame, make sure the text is clear, then take the picture.
+                </div>
+              </>
+            )}
 
             <input
               ref={fileInputRef}
@@ -893,10 +928,6 @@ export default function Scan() {
               onChange={handleReceiptFileUpload}
               style={{ display: 'none' }}
             />
-
-            <div className="receipt-help">
-              Line up the receipt inside the frame, make sure the text is clear, then take the picture.
-            </div>
           </div>
         )}
 

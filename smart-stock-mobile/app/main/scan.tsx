@@ -865,12 +865,11 @@ export default function ScanScreen() {
             )}
 
             {receiptLoading && (
-              <View style={styles.receiptUploadArea}>
+              <View style={styles.receiptLoadingCard}>
                 <ActivityIndicator color="#2e7d32" size="large" />
-                <Text style={styles.receiptSubtitle}>Processing receipt...</Text>
-                <Text style={[styles.receiptSubtitle, { fontSize: 12, marginTop: 4 }]}>
-                  This may take a moment
-                </Text>
+                <Text style={styles.receiptLoadingTitle}>Processing Receipt...</Text>
+                <Text style={styles.receiptLoadingStep}>Uploading image, reading text, and identifying grocery items.</Text>
+                <Text style={styles.receiptLoadingHint}>This may take 15–30 seconds.</Text>
               </View>
             )}
 
@@ -1298,6 +1297,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
+  },
+  receiptLoadingCard: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    backgroundColor: "#f8faf8",
+    borderRadius: 16,
+    margin: 20,
+    paddingVertical: 40,
+  },
+  receiptLoadingTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2e7d32",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  receiptLoadingStep: {
+    fontSize: 14,
+    color: "#555",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  receiptLoadingHint: {
+    fontSize: 12,
+    color: "#999",
+    textAlign: "center",
   },
   receiptTitle: {
     fontSize: 22,
