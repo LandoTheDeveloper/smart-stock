@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
@@ -476,11 +477,20 @@ export default function ScanScreen() {
       setReceiptError(null);
       setReceiptItems([]);
 
+      // Resize/compress image to keep payload small (native camera can produce 5-10MB files)
+      const context = ImageManipulator.ImageManipulator.manipulate(asset.uri);
+      context.resize({ width: 1600 });
+      const imageRef = await context.renderAsync();
+      const manipulated = await imageRef.saveAsync({
+        compress: 0.7,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+
       const formBody = new FormData();
       formBody.append("receipt", {
-        uri: asset.uri,
+        uri: manipulated.uri,
         name: "receipt.jpg",
-        type: asset.mimeType || "image/jpeg",
+        type: "image/jpeg",
       } as any);
 
       const response = await api.post("/api/receipt/upload", formBody, {
