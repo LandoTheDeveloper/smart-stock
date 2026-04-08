@@ -19,7 +19,6 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "axios": "^1.13.6",
-    "expo-barcode-scanner": "^13.0.1",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.10",
     "expo-font": "~14.0.9",
